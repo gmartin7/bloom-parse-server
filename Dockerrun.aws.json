@@ -1,0 +1,12 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "rickmaclean/bloom-parse-server",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "1337"
+    }
+  ]
+}

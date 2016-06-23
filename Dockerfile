@@ -6,9 +6,10 @@ ADD . /parse
 WORKDIR /parse
 RUN npm install
 
-ENV APP_ID setYourAppId
-ENV MASTER_KEY setYourMasterKey
-ENV DATABASE_URI setMongoDBURI
+# These need to be set in AWS elastic beanstalk as ENV variables
+#ENV APP_ID setYourAppId
+#ENV MASTER_KEY setYourMasterKey
+#ENV DATABASE_URI setMongoDBURI
 
 # Optional (default : 'parse/cloud/main.js')
 # ENV CLOUD_CODE_MAIN cloudCodePath
@@ -24,3 +25,20 @@ EXPOSE 1337
 # VOLUME /parse/cloud               
 
 CMD [ "npm", "start" ]
+
+
+#NOTES
+# To Build the image do something like this.
+# $ docker build -t rickmaclean/bloom-parse-server .
+#
+# To be able to push it to hub.docker.com log in
+# $ docker login
+#
+# The credentials file would be needed if the repo were private.
+# cat $HOME/.docker/config.json
+#
+# push the repo to the account you logged into (we want this to be silintl/bloom-parse-server
+# $docker push rickmaclean/bloom-parse-server
+#
+
+
