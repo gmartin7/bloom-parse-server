@@ -35,7 +35,7 @@ Parse.Cloud.define("populateSearch", function(request, response) {
     response.success("Update completed successfully.");
   }, function(error) {
     // Set the job's error status
-    response.error("Uh oh, something went wrong Rick: " + error);
+    response.error("Uh oh, something went wrong: " + error);
   });
 });
 
