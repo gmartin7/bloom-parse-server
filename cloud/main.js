@@ -23,8 +23,15 @@ Parse.Cloud.define("populateSearch", function(request, response) {
 	  var tags = book.get("tags");
 	  var search = book.get("title").toLowerCase();
 	  var index;
-	  for (index = 0; index < tags.length; ++index) {
-		search = search + " " + tags[index].toLowerCase();
+          if (tags) {
+		console.log('TAGS IS DEFINED IN populateSearch');		
+	     	for (index = 0; index < tags.length; ++index) {
+	   		search = search + " " + tags[index].toLowerCase();
+	  	}
+          }
+    	  else {
+        	book.set("tags", []); //repair broken database element so we can save it. Tags should not be null for mongoDB
+
 	  }
       book.set("search", search);
       counter += 1;
@@ -35,7 +42,7 @@ Parse.Cloud.define("populateSearch", function(request, response) {
     response.success("Update completed successfully.");
   }, function(error) {
     // Set the job's error status
-    response.error("Uh oh, something went wrong: " + error);
+    response.error("Uh oh, something went wrong in populateSearch: " + error);
   });
 });
 
