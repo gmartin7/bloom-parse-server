@@ -1,7 +1,7 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "rickmaclean/bloom-parse-server",
+    "Name": "silintl/bloom-parse-server",
     "Update": "true"
   },
   "Ports": [
@@ -10,3 +10,4 @@
     }
   ]
 }
+
