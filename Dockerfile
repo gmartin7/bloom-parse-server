@@ -27,9 +27,13 @@ EXPOSE 1337
 CMD [ "npm", "start" ]
 
 
-#NOTES
+#NOTES for developers
+# When doing development it might be prudent to build your own Docker image and push it 
+# to a repo where is can be pulled from (Referenced in Dockerrun.aws.json since it might 
+# be to slow to wait for it to update on https://hub.docker.com/r/silintl/bloom-parse-server/
+#
 # To Build the image do something like this.
-# $ docker build -t rickmaclean/bloom-parse-server .
+# $ docker build -t yourhubdockeraccount/bloom-parse-server .
 #
 # To be able to push it to hub.docker.com log in
 # $ docker login
@@ -38,7 +42,7 @@ CMD [ "npm", "start" ]
 # cat $HOME/.docker/config.json
 #
 # push the repo to the account you logged into (we want this to be silintl/bloom-parse-server
-# $docker push rickmaclean/bloom-parse-server
+# $ docker push  yourhubdockeraccount/bloom-parse-server
 #
 
 
