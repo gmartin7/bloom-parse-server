@@ -1,3 +1,9 @@
+Parse.Cloud.define('helloBuildTriggered', function(req, res) {
+  res.success('Hi a build was triggered for bloom-parse-server on hub.docker.com');
+  console.log('parse-server-example main.js define hello function');
+});
+
+
 
 Parse.Cloud.define('hello', function(req, res) {
   res.success('Hi');
