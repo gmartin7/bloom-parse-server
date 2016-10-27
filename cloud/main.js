@@ -1,16 +1,45 @@
-Parse.Cloud.define('helloBuildTriggered', function(req, res) {
-    res.success('Hi a build was triggered for bloom-parse-server on hub.docker.com');
-    console.log('parse-server-example main.js define hello function');
-});
-
 Parse.Cloud.define('hello', function(req, res) {
     res.success('Hi');
-    console.log('parse-server-example main.js define hello function');
+    console.log('bloom-parse-server cloud-code: hello function');
 });
 
-Parse.Cloud.define('helloWorld', function(req, res) {
-    res.success('Hi Bloom users of the world.');
-    console.log('parse-server-example main.js define helloWorld function');
+Parse.Cloud.define('testDB', function(req, res) {
+    console.log('bloom-parse-server cloud-code: testDB');
+    try{
+        console.log('bloom-parse-server cloud-code: testDB: trying to read GameScore');
+        var GameScore = Parse.Object.extend("GameScore");
+        var query = new Parse.Query(GameScore);
+        query.count({
+            success: function(gameScore) {
+                console.log('bloom-parse-server cloud-code: testDB: GameScore read succeeded');
+            },
+            error: function(object, error) {
+                console.log('bloom-parse-server cloud-code: testDB: GameScore read failed: '+error);
+            }
+        });
+    } catch(ex) {
+        console.log('bloom-parse-server cloud-code: testDB: testDB GameScore read threw exception: '+ex);
+    }
+
+    try {
+        var parseClass = Parse.Object.extend("testDB");
+        var instance = new parseClass();
+        instance.set("test", "foo");
+        console.log('bloom-parse-server cloud-code: testDB: writing...');
+        instance.save(null, { useMasterKey: true,
+            success: function (newObj) {
+                 console.log('bloom-parse-server cloud-code: testDB: save succeeded');
+            },
+            error: function (error) {
+                console.log('bloom-parse-server cloud-code: testDB: save failed'+error);
+            }
+        });
+
+    } catch(error) {
+        console.log('bloom-parse-server cloud-code: testDB: testDB failed: '+error);
+        res.error("write failed: "+error);
+    }
+    res.success('This function is not sophisticated enough to wait for async calls. Check server log to verify it completed.');
 });
 
 // This job updates all current records 'search' field.
@@ -27,7 +56,7 @@ Parse.Cloud.define("populateSearch", function(request, response) {
         var search = book.get("title").toLowerCase();
         var index;
         if (tags) {
-            console.log('TAGS IS DEFINED IN populateSearch');        
+            console.log('TAGS IS DEFINED IN populateSearch');
             for (index = 0; index < tags.length; ++index) {
                 search = search + " " + tags[index].toLowerCase();
             }
@@ -38,9 +67,9 @@ Parse.Cloud.define("populateSearch", function(request, response) {
         counter += 1;
         return book.save(null, { useMasterKey: true }).then(
             function() {},
-            function(error) { 
+            function(error) {
                 console.log("book.save failed: " + error);
-                response.error("book.save failed: " + error); 
+                response.error("book.save failed: " + error);
             });
     }).then(function() {
         // Set the job's success status
@@ -173,7 +202,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                         console.log("created tag " + tags[index]);
                         //Next tag
                         return incrementTagUsageCount(tags, index + 1);
-                    },  
+                    },
                     function(error) {
                         console.log("newTag.save failed: " + error);
                         response.error("newTag.save failed: " + error);
@@ -199,8 +228,8 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                 function () {
                     //Next language
                     return setLangUsageCount(data, index + 1);
-                }, 
-                function(error) { 
+                },
+                function(error) {
                     console.log("item.save failed: " + error);
                     response.error("item.save failed: " + error);
                 }
@@ -228,7 +257,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                 return item.save(null, { useMasterKey: true }).then(function () {
                     return setTagUsageCount(data, index + 1);
                 }
-                ,  
+                ,
                 function(error) { console.log("item.save failed: " + error); response.error("item.save failed: " + error); });
             }
             else {
@@ -258,7 +287,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     var book = request.object;
 
     console.log('entering parse-server-example main.js beforeSave books');
- 
+
     // If updateSource is not set, the new/updated record came from the desktop application
     var updateSource = request.object.get("updateSource");
     if (!updateSource) {
@@ -276,9 +305,9 @@ Parse.Cloud.beforeSave("books", function(request, response) {
         }
     }
     request.object.set("search", search);
-    
+
     var creator = request.user;
-    
+
     if (creator && request.object.isNew()) { // created normally, someone is logged in and we know who, restrict access
         var newACL = new Parse.ACL();
         // According to https://parse.com/questions/beforesave-user-set-permissions-for-self-and-administrators,
@@ -437,10 +466,6 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
 // by hand.
 // Run this function from a command line like this (with the appropriate keys for the application inserted)
 // curl -X POST -H "X-Parse-Application-Id: <insert ID>"  -H "X-Parse-REST-API-Key: <insert REST key>" https://api.parse.com/1/functions/setupTables
-// Note: if you are debugging future versions of this and get an error like this:
-// {"code":141,"error":"{\"administrator\":false,\"username\":\"xxyyzzAVeryUnlikelyDummyName\",\"password\":\"Unguessable\"}"}
-// Probably an earlier run created but did not delete the fake user that we use as target for Pointer<_User> fields.
-// Just delete that user by hand in the parse.com data browser.
 Parse.Cloud.define("setupTables", function(request, response) {
     // Required BloomLibrary classes/fields
     // Note: code below currently requires that 'books' is first.
@@ -623,7 +648,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                     break;
             }
         }
-        instance.save(null, { useMasterKey: true }, {
+        instance.save(null, { useMasterKey: true,
             success: function (newObj) {
                 // remember the new object so we can destroy it later, or use it as a relation target.
                 classes[ic].parseObject = newObj;
@@ -648,7 +673,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 }
             },
             error: function (error) {
-                console.log("instance.save failed: " + error); 
+                console.log("instance.save failed: " + error);
                 response.error("instance.save failed: " + error);
             }
         });
@@ -685,19 +710,18 @@ Parse.Cloud.define("setupTables", function(request, response) {
                     version = new versionType();
                 }
                 version.set("minDesktopVersion", "2.0");
-                version.save(null, { useMasterKey: true }, {
+                version.save(null, { useMasterKey: true,
                     success: function () {
                         // Finally destroy the spurious user we made.
                         aUser.destroy({success: function () {
-                            response.success("Tables created!");
-                        },
+                            response.success("setupTables ran to completion.");                        },
                             error: function (error) {
                                 response.error(error);
                             }
                         });
                     },
                     error: function (error) {
-                        console.log("version.save failed: " + error); 
+                        console.log("version.save failed: " + error);
                         response.error("version.save failed: " + error);
                     }
                 })
@@ -707,8 +731,11 @@ Parse.Cloud.define("setupTables", function(request, response) {
             }
         });
     };
-    // Create a user.
-    Parse.User.signUp("xxyyzzAVeryUnlikelyDummyName", "Unguessable", {administrator: false}, {
+    // Create a user, temporarily, which we will delete later.
+    // While debugging I got tired of having to manually remove previous "temporary" users,
+    // hence each is now unique.
+     var rand = parseInt((Math.random() * 10000), 10);
+     Parse.User.signUp("zzDummyUserForSetupTables"+rand, "unprotected", {administrator: false}, {
         success: function(newUser) {
             aUser = newUser;
             doOne(); // start the recursion.
