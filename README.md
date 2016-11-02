@@ -74,7 +74,7 @@ Each is backed by a single mongodb at mlab.com. This is how they were made:
 
 1. Create the mongodb on mlab.com, making sure to select Azure and the same datacenter. Failing to do this increases response times by 3x.
 2. In Azure, create a new "Web App" App Service
-3. In Azure:App Service:Application Settings, create these settings:
+3. In Azure:App Service:Application Settings:App Settings, create these settings:
 
     DATABASE_URI mongodb://account:password@something.com:port/database
 
@@ -82,7 +82,7 @@ Each is backed by a single mongodb at mlab.com. This is how they were made:
 
     MASTER_KEY you make this up
 
-    SERVER_URL http://<app service name>.azurewebsites.net/parse
+    SERVER_URL http://[azure app service name].azurewebsites.net/parse
 
     Note: Don't leave off that /parse in the SERVER_URL!
 
@@ -92,7 +92,7 @@ Each is backed by a single mongodb at mlab.com. This is how they were made:
 with the appropriate branch. A few minutes later, parse-server will be running. Note that Azure apparently does the `npm install` automatically, as needed.
 Not also that it automatically redepoys when github notifies it of a checkin on the branch it is watching.
 
-    Question: does the service shut down while this is happening?
+    TODO: Set up Deployment "Slots".
 
 5. We never touch the schema using the Parse Dashboard or letting queries automagically add clases or fields.
 Instead, we set up the schema using a Cloud Code function `setupTables`.
