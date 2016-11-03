@@ -31,7 +31,7 @@ Here is the full [Parse Server guide](https://github.com/ParsePlatform/parse-ser
 
     ```
     npm install parse-dashboard --global
-    parse-dashboard --appId myAppId --masterKey "123" --serverURL
+    parse-dashboard --appId myAppId --masterKey "123" --serverURL http://localhost:1337/parse
     ```
 
     This will respond that it is available at http://0.0.0.0, but actually it is at http://localhost.
