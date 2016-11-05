@@ -423,6 +423,10 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
                     allBooksQuery.startsWith("license", "cc-");
                 allBooksQuery.ascending("title");
                 allBooksQuery.skip(skip); // skip the ones we already got
+                // REVIEW: would this work? Would it speed things up?  allBooksQuery.limit(count);
+                // It looks like maybe we're getting all 1000 books and then only
+                // copying "count" books into the results.
+
                 allBooksQuery.find({
                     success: function (allBooks) {
                         skip += allBooks.length; // skip these ones next iteration
