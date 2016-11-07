@@ -1,3 +1,39 @@
+// This cloud function is called by the BloomLibrary client page when
+// a user has filled out the form to report a concern about a book.
+// We use their address as the from (via sendgrid) and use their message
+// as part of the body. This goes into a template which adds other information
+// about the book. The email goes to our internal address for handling concerns,
+// set by an appsetting in azure.
+
+// Sample CURL (you will also need the environment variable EMAIL_REPORT_BOOK_RECIPIENT set):
+// curl -X POST -H "X-Parse-Application-Id: myAppId" -H "X-Parse-Master-Key: 123"
+//  -d "message='i am concerned'&bookId='123'&bookTitle='flowers for foobar'"
+//  http://localhost:1337/parse/functions/testBookSaved
+
+Parse.Cloud.define("sendConcernEmail", function(request, response) {
+    var sendgridLibrary = require('sendgrid');
+    const helper = sendgridLibrary.mail;
+    const mail = new helper.Mail();
+    mail.setFrom(new helper.Email(request.params.fromAddress));
+    mail.setSubject('book concern'); // Will be replaced by template
+
+    const message = new helper.Content('text/plain', request.params.content);
+    mail.addContent(message);
+    mail.setTemplateId('5840534b-3c8c-4871-9f9a-c6d07fb52fae');  // Report a Book
+
+    //Enhance: perhaps require that the request give the bookId, then look up the book here?
+    //For now, start with dummy one and then merge in whatever the requester told us about the book
+    var book = {'title':'unknown title','uploader':'unknown uploader','copyright':'unknown copyright','license':'unknown license', bookId:'unknownBookId'};
+    Object.assign(/*target=*/book,  /*source=*/request.params.book);
+
+    sendEmailAboutBookAsync(book, mail,process.env.EMAIL_REPORT_BOOK_RECIPIENT).then(function() {
+        console.log("Sent Concern Email Successfully.");
+        response.success("Success");
+    }).catch(function(error) {
+        console.log("Sending Concern Email Failed: " + error);
+        response.error("Sending Concern Email Failed: " + error);
+    });
+});
 Parse.Cloud.define("testBookSaved", function(request, response) {
     var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
     exports.sendBookSavedEmailAsync(book).then(function(result){
