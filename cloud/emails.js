@@ -24,8 +24,8 @@ function sendBookSavedEmailAsync(book) {
     return sendEmailAboutBookAsync(book, mail, process.env.EMAIL_BOOK_EVENT_RECIPIENT);
 }
 
-// Caller should have already filled in the from, to, subject, and content.
-// This adds metedata about the book and sends off the email.
+// Caller should have already filled in the from, subject, and (optionally) content.
+// This adds metadata about the book and sends off the email.
 function sendEmailAboutBookAsync(book, sendGridMail, toAddress) {
     return new Promise(function(resolve, reject) {
         try{
