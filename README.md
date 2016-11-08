@@ -17,7 +17,7 @@ Here is the full [Parse Server guide](https://github.com/ParsePlatform/parse-ser
 
 1. Give mongodb a blank directory to work with, and run it:
 
-    `c:\Program Files\MongoDB\Server\3.2\bin>mongod.exe --dbpath x:\temp\mongodata`
+    `mongod.exe --dbpath x:\temp\mongodata`
 
 1. Start up this server:
 
@@ -47,10 +47,6 @@ Here is the full [Parse Server guide](https://github.com/ParsePlatform/parse-ser
 
     and see the tables in the dashboard.
 
-
-### Cloud Code
-
-Normally you will only touch the "cloud code", found in cloud/main.js.
 
 ### Sample Queries
 
