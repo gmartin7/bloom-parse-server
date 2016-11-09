@@ -1,6 +1,7 @@
-require('./emails.js');
+require('./emails.js'); // allows email-specific could functions to be defined
 
 Parse.Cloud.define('hello', function(req, res) {
+    var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
     res.success('Hi');
     console.log('bloom-parse-server cloud-code: hello function');
 });
@@ -356,13 +357,14 @@ Parse.Cloud.afterSave("books", function(request) {
         })
     });
 
-    // sendBookSavedEmailAsync(book).then(function() {
-    //     console.log("Book saved email notice sent successfully.");
-    // }).catch(function(error) {
-    //     console.log("ERROR: 'Book saved but sending notice email failed: " + error);
-    //     // We leave it up to the code above that is actually doing the saving to declare
-    //     // failure (response.error) or victory (response.success), we stay out of it.
-    // });
+    var emailer = require('./emails.js');
+    emailer.sendBookSavedEmailAsync(book).then(function() {
+        console.log("Book saved email notice sent successfully.");
+    }).catch(function(error) {
+        console.log("ERROR: 'Book saved but sending notice email failed: " + error);
+        // We leave it up to the code above that is actually doing the saving to declare
+        // failure (response.error) or victory (response.success), we stay out of it.
+    });
 })
 
 Parse.Cloud.afterSave("downloadHistory", function(request) {

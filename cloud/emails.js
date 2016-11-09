@@ -1,6 +1,6 @@
 Parse.Cloud.define("testBookSaved", function(request, response) {
     var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
-    sendBookSavedEmailAsync(book).then(function(result){
+    exports.sendBookSavedEmailAsync(book).then(function(result){
         console.log("Sendgrid 'Announce Book Uploaded' completed.");
         response.success(result);
     }).catch(function(error) {
@@ -9,23 +9,21 @@ Parse.Cloud.define("testBookSaved", function(request, response) {
     });
 });
 
-
-
 // This email is sent when a book is uploaded or created.
 // It is sent to an internal address, set by an appsetting in azure.
-function sendBookSavedEmailAsync(book) {
+exports.sendBookSavedEmailAsync = function(book) {
     var sendgridLibrary = require('sendgrid');
     const helper = sendgridLibrary.mail;
     const mail = new helper.Mail();
     mail.setFrom(new helper.Email('bot@bloomlibrary.org', 'Bloom Bot'));
     mail.setSubject('book saved'); // Will be replaced by template
     mail.setTemplateId('cdfea777-a9d7-49bc-8fd4-26c49b773b13'); // Announce Book Uploaded
-    return sendEmailAboutBookAsync(book, mail, process.env.EMAIL_BOOK_EVENT_RECIPIENT);
+    return exports.sendEmailAboutBookAsync(book, mail, process.env.EMAIL_BOOK_EVENT_RECIPIENT);
 }
 
 // Caller should have already filled in the from, subject, and (optionally) content.
 // This adds metadata about the book and sends off the email.
-function sendEmailAboutBookAsync(book, sendGridMail, toAddress) {
+exports.sendEmailAboutBookAsync = function(book, sendGridMail, toAddress) {
     return new Promise(function(resolve, reject) {
         try{
             // on the unit test server, we don't want to be sending emails, so we just don't set the needed environment variables.
