@@ -356,13 +356,13 @@ Parse.Cloud.afterSave("books", function(request) {
         })
     });
 
-    sendBookSavedEmailAsync(book).then(function() {
-        console.log("Book saved email notice sent successfully.");
-    }).catch(function(error) {
-        console.log("ERROR: 'Book saved but sending notice email failed: " + error);
-        // We leave it up to the code above that is actually doing the saving to declare
-        // failure (response.error) or victory (response.success), we stay out of it.
-    });
+    // sendBookSavedEmailAsync(book).then(function() {
+    //     console.log("Book saved email notice sent successfully.");
+    // }).catch(function(error) {
+    //     console.log("ERROR: 'Book saved but sending notice email failed: " + error);
+    //     // We leave it up to the code above that is actually doing the saving to declare
+    //     // failure (response.error) or victory (response.success), we stay out of it.
+    // });
 })
 
 Parse.Cloud.afterSave("downloadHistory", function(request) {
