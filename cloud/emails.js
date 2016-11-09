@@ -1,9 +1,8 @@
-
 Parse.Cloud.define("testBookSaved", function(request, response) {
     var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
-    sendBookSavedEmailAsync(book).then(function(){
+    sendBookSavedEmailAsync(book).then(function(result){
         console.log("Sendgrid 'Announce Book Uploaded' completed.");
-        response.success("Success");
+        response.success(result);
     }).catch(function(error) {
         console.log("ERROR: Sendgrid 'Announce Book Uploaded' failed: " + error);
         response.error("ERROR: Sendgrid 'Announce Book Uploaded' failed: " + error);
@@ -29,6 +28,15 @@ function sendBookSavedEmailAsync(book) {
 function sendEmailAboutBookAsync(book, sendGridMail, toAddress) {
     return new Promise(function(resolve, reject) {
         try{
+            // on the unit test server, we don't want to be sending emails, so we just don't set the needed environment variables.
+            if(process.env.SENDGRID_API_KEY === undefined || process.env.SENDGRID_API_KEY.length == 0) {
+                console.log("SENDGRID_API_KEY environment variable not set, sendEmailAboutBookAsync() will just pretend it succeeded.");
+                resolve("SENDGRID_API_KEY environment variable not set");
+            }
+            if(toAddress === undefined || toAddress.length == 0) {
+                console.log("toAddress not set, sendEmailAboutBookAsync() will just pretend it succeeded.");
+                resolve("toAddress variable not set (check environment variable)");
+            }
             var sendgridLibrary = require('sendgrid');
             const helper = sendgridLibrary.mail;
             //provide the parameters for the template
@@ -54,7 +62,7 @@ function sendEmailAboutBookAsync(book, sendGridMail, toAddress) {
                     console.log(JSON.stringify(response));
                     reject('Sendgrid emptyRequest returned error: ' + JSON.stringify(response));
                 } else {
-                    resolve();
+                    resolve("Success");
                 }
             });
         } catch(exception) {
