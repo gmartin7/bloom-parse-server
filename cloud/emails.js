@@ -1,3 +1,59 @@
+// This cloud function is called by the BloomLibrary client page when
+// a user has filled out the form to report a concern about a book.
+// We use their address as the from (via sendgrid) and use their message
+// as part of the body. This goes into a template which adds other information
+// about the book. The email goes to our internal address for handling concerns,
+// set by an appsetting in azure.
+
+// Sample CURL
+// curl -X POST -H "X-Parse-Application-Id: myAppId" -H "X-Parse-Master-Key: 123"
+//  -d "message='i am concerned'&bookId='123'&bookTitle='flowers for foobar'"
+//  http://localhost:1337/parse/functions/testBookSaved
+
+// NOTE: the environment variable EMAIL_REPORT_BOOK_RECIPIENT must be set on the machine hosting the parse server.
+// (this will often be the cloud servers where this is already set, but if you are running the parse server locally,
+// you need to set it to the email address to which you want to send the email.)
+
+Parse.Cloud.define("sendConcernEmail", function(request, response) {
+    var sendgridLibrary = require('sendgrid');
+    const helper = sendgridLibrary.mail;
+    const mail = new helper.Mail();
+    mail.setFrom(new helper.Email(request.params.fromAddress));
+    mail.setSubject('book concern'); // Will be replaced by template
+
+    const message = new helper.Content('text/plain', request.params.content);
+    mail.addContent(message);
+    mail.setTemplateId('5840534b-3c8c-4871-9f9a-c6d07fb52fae'); // Report a Book
+
+    var bookId = request.params.bookId;
+    var query = new Parse.Query('books');
+    query.equalTo('objectId', bookId);
+    query.include('uploader');
+    query.find({
+        success: function(results) {
+            var sourceBook = results[0]._toFullJSON();
+            // Make sure we at least populate all the fields we want to send. Fill in with what we actually know.
+            var book = {'title':'unknown title','copyright':'unknown copyright','license':'unknown license',objectId:'unknownBookId'};
+            Object.assign(/*target=*/book, /*source=*/sourceBook);
+            if (sourceBook.uploader && sourceBook.uploader.username)
+                book['uploader'] = sourceBook.uploader.username;
+            else
+                book['uploader'] = 'unknown uploader';
+
+            exports.sendEmailAboutBookAsync(book, mail, process.env.EMAIL_REPORT_BOOK_RECIPIENT).then(function() {
+                console.log("Sent Concern Email Successfully.");
+                response.success("Success");
+            }).catch(function(error) {
+                console.log("Sending Concern Email Failed: " + error);
+                response.error("Sending Concern Email Failed: " + error);
+            });
+        },
+        error: function(error) {
+            console.log("Error looking up book in sendConcernEmail with objectId " + bookId + ": " + error);
+            response.error("Error looking up book in sendConcernEmail with objectId " + bookId + ": " + error);
+        }
+    });
+});
 Parse.Cloud.define("testBookSaved", function(request, response) {
     var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
     exports.sendBookSavedEmailAsync(book).then(function(result){
