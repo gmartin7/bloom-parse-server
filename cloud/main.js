@@ -1,4 +1,7 @@
+require('./emails.js'); // allows email-specific could functions to be defined
+
 Parse.Cloud.define('hello', function(req, res) {
+    var book = {'title':'the title','uploader':'the uploader','copyright':'the copyright','license':'the license', bookId:'theBookId'};
     res.success('Hi');
     console.log('bloom-parse-server cloud-code: hello function');
 });
@@ -353,6 +356,15 @@ Parse.Cloud.afterSave("books", function(request) {
             }
         })
     });
+
+    var emailer = require('./emails.js');
+    emailer.sendBookSavedEmailAsync(book).then(function() {
+        console.log("Book saved email notice sent successfully.");
+    }).catch(function(error) {
+        console.log("ERROR: 'Book saved but sending notice email failed: " + error);
+        // We leave it up to the code above that is actually doing the saving to declare
+        // failure (response.error) or victory (response.success), we stay out of it.
+    });
 })
 
 Parse.Cloud.afterSave("downloadHistory", function(request) {
@@ -423,6 +435,10 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
                     allBooksQuery.startsWith("license", "cc-");
                 allBooksQuery.ascending("title");
                 allBooksQuery.skip(skip); // skip the ones we already got
+                // REVIEW: would this work? Would it speed things up?  allBooksQuery.limit(count);
+                // It looks like maybe we're getting all 1000 books and then only
+                // copying "count" books into the results.
+
                 allBooksQuery.find({
                     success: function (allBooks) {
                         skip += allBooks.length; // skip these ones next iteration
