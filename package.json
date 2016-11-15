@@ -13,6 +13,7 @@
     "kerberos": "~0.0.x",
     "parse": "~1.8.0",
     "parse-server": "~2.2.12",
+    "parse-server-sendgrid-adapter": "^1.0.0",
     "sendgrid": "^4.7.1"
   },
   "scripts": {
