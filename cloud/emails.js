@@ -63,6 +63,9 @@ Parse.Cloud.define("testBookSaved", function(request, response) {
 // This email is sent when a book is uploaded or created.
 // It is sent to an internal address, set by an appsetting in azure.
 exports.sendBookSavedEmailAsync = function(parseBook) {
+
+    //TODO need to actually re-query in order to get the uploader because that's not a simple string field
+
     var sendgridLibrary = require('sendgrid');
     const helper = sendgridLibrary.mail;
     const mail = new helper.Mail();
