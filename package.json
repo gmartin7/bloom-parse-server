@@ -19,7 +19,11 @@
   "scripts": {
     "start": "node index.js"
   },
+  "//": "NOTE: during azure deployment, this controls what node/npm we get.",
+  "//": "However the node we see in the kudo console is controlled by WEBSITE_NODE_DEFAULT_VERSION in appsettings.",
+  "//": "See https://blogs.msdn.microsoft.com/azureossds/2016/04/20/nodejs-and-npm-versions-on-azure-app-services/",
   "engines": {
-    "node": "4.4"
+    "node": "6.9.1",
+    "npm": "3.10.8"
   }
 }
