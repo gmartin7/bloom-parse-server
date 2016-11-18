@@ -60,6 +60,18 @@ Parse.Cloud.define("testBookSaved", function(request, response) {
         });
 });
 
+// Parse.Cloud.define("SendEmailOfBooksNewInLast24Hours", function(request, response) {
+//     var bookQuery = new Parse.Query('books');
+//     bookQuery.include('uploader');
+//     var aDayAgo = new Date(new Date().getTime() - (24 * 60 * 60 * 1000));
+
+//     bookQuery.greaterThanOrEqualTo("createdAt", sinceThen);
+
+//     return bookQuery.find().then(function (books) {
+//          TODO create a since body for the email out of all the books
+//         });
+// });
+
 // This email is sent when a book is uploaded or created.
 // It is sent to an internal address, set by an appsetting in azure.
 exports.sendBookSavedEmailAsync = function(parseBook) {

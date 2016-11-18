@@ -357,18 +357,31 @@ Parse.Cloud.afterSave("books", function(request) {
         })
     });
 
-    //send email if this didn't exist before
-    //Review: does this mean we won't hear of re-uploads?
-    if ( !request.object.existed() ) {
-        var emailer = require('./emails.js');
-        emailer.sendBookSavedEmailAsync(book).then(function() {
-            console.log("Book saved email notice sent successfully.");
-        }).catch(function(error) {
-            console.log("ERROR: 'Book saved but sending notice email failed: " + error);
-            // We leave it up to the code above that is actually doing the saving to declare
-            // failure (response.error) or victory (response.success), we stay out of it.
-        })
-    };
+    try {
+        //send email if this didn't exist before
+        // this seemed to work locally, but not on the azure production server,
+        // and has been the subject of many bug reports over the years
+        //          objectExisted = request.object.existed();
+        // so we are working around it this way:
+        var createdAt = request.object.get("createdAt");
+        var updatedAt = request.object.get("updatedAt");
+        var objectExisted = (createdAt.getTime() != updatedAt.getTime());
+
+        console.log("afterSave email handling request.object.existed():"+request.object.existed());
+        console.log("afterSave email handling createdAt:"+createdAt+" updatedAt:"+updatedAt+" objectExisted:"+objectExisted);
+        if ( !objectExisted ) {
+            var emailer = require('./emails.js');
+            emailer.sendBookSavedEmailAsync(book).then(function() {
+                console.log("xBook saved email notice sent successfully.");
+            }).catch(function(error) {
+                console.log("ERROR: 'Book saved but sending notice email failed: " + error);
+                // We leave it up to the code above that is actually doing the saving to declare
+                // failure (response.error) or victory (response.success), we stay out of it.
+            })
+        };
+    } catch(error) {
+        console.log("aftersave email handling error: "+error);
+    }
 })
 
 Parse.Cloud.afterSave("downloadHistory", function(request) {
