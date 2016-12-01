@@ -623,7 +623,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "icon1024x1024", type:"String"},
                 {name: "featureGraphic1024x500", type:"String"},
                 {name: "details", type:"Relation<appDetailsInLanguage>"},
-                {name: "owner", type:"Pointer<_User>"}
+                {name: "owner", type:"Pointer<_User>"},
+                {name: "packageName", type:"String"}
             ]
         },
         { // must come after the classes it references
