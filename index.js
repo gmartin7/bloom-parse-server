@@ -30,7 +30,6 @@ var api = new ParseServer(serverConfig);
 // If you wish you require them, you can set them as options in the initialization above:
 // javascriptKey, restAPIKey, dotNetKey, clientKey
 
-var allowInsecureHTTP = false;
 var dashboard = new ParseDashboard({
     apps: [
         {
@@ -41,16 +40,16 @@ var dashboard = new ParseDashboard({
         production: serverConfig.serverURL.includes('production')
         }
     ],
+    trustProxy: 1,
     users: [
         {
         user: serverConfig.appId,
         pass: serverConfig.masterKey
         }
     ]
-}, allowInsecureHTTP);
+});
 
 var app = express();
-
 
 // Serve the Parse API on the /parse URL prefix
 var mountPath = process.env.PARSE_MOUNT || '/parse';
