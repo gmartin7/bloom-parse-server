@@ -85,14 +85,12 @@ Parse.Cloud.define("populateSearch", function(request, response) {
 
 // This job will remove any language records which currently do not have any books which use them.
 // The purpose is to keep BloomLibrary.org from displaying languages with no books.
-// It is scheduled to run every day. (parse.com -> Core -> Jobs)
-// It can be run manually using the following from the command line:
-// curl -X POST -H "X-Parse-Application-Id: <insert app ID>"  -H "X-Parse-Master-Key: <insert master key>" -d '{}' https://api.parse.com/1/jobs/removeUnusedLanguages
+// This is scheduled on Azure under bloom-library-maintenance.
+// You can also run it manually via REST:
+// curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert master key>" -d '{}' https://bloom-parse-server-develop.azurewebsites.net/parse/functions/removeUnusedLanguages
 // (In theory, the -d '{}' shouldn't be needed because we are not passing any parameters, but it doesn't work without it.)
 Parse.Cloud.define("removeUnusedLanguages", function(request, response) {
-    // Set up to modify data
-    //Parse.Cloud.useMasterKey();
-    console.log('entering bloom-parse-server main.js define removeUnusedLanguages');
+    console.log('entering bloom-parse-server main.js removeUnusedLanguages');
 
     var allLangQuery = new Parse.Query('language');
     allLangQuery.find().then(function (languages) {
@@ -122,17 +120,12 @@ Parse.Cloud.define("removeUnusedLanguages", function(request, response) {
     });
 });
 
-//A background job to populate usageCounts for languages and tags
-//To schedule this job on parse.com, go to Core > Jobs > Schedule a Job
-//In that menu, 1) enter an arbitrary description, 2) select the job name "populateCounts",
-//and 3) set repeat to either every day at some time or every so many minutes/hours.
-//Click "Schedule Job." The job will henceforth be run at the specified interval.
-//To run the job a single time, either click "Run Now" on the scheduled populateCounts job on the parse.com Jobs menu,
-//or run this command from the command line:
-//curl -X POST -H "X-Parse-Application-Id: <insert ID>"  -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://api.parse.com/1/jobs/populateCounts
+// A background job to populate usageCounts for languages and tags
+// This is scheduled on Azure under bloom-library-maintenance.
+// You can also run it manually via REST:
+// curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://bloom-parse-server-develop.azurewebsites.net/parse/functions/populateCounts
 Parse.Cloud.define("populateCounts", function(request, response) {
-    //Parse.Cloud.useMasterKey();
-    console.log('entering bloom-parse-server main.js define populateCounts');
+    console.log('entering bloom-parse-server main.js populateCounts');
 
     var counters = { language: {}, tag: {}};
 
@@ -623,7 +616,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "icon1024x1024", type:"String"},
                 {name: "featureGraphic1024x500", type:"String"},
                 {name: "details", type:"Relation<appDetailsInLanguage>"},
-                {name: "owner", type:"Pointer<_User>"}
+                {name: "owner", type:"Pointer<_User>"},
+                {name: "packageName", type:"String"}
             ]
         },
         { // must come after the classes it references
@@ -726,15 +720,15 @@ Parse.Cloud.define("setupTables", function(request, response) {
     var deleteOne = function() {
         // Now we're done, the class and fields must exist; we don't actually want the instances
         var newObj = classes[ic].parseObject;
-        newObj.destroy({success: function () {
-            ic++;
-            if (ic < classes.length) {
-                deleteOne(); // recursive loop
-            }
-            else {
-                cleanup();
-            }
-        },
+        newObj.destroy({useMasterKey: true,
+            success: function () {
+                ic++;
+                if (ic < classes.length) {
+                    deleteOne(); // recursive loop
+                } else {
+                    cleanup();
+                }
+            },
             error: function (error) {
                 response.error(error);
             }
@@ -758,8 +752,10 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 version.save(null, { useMasterKey: true,
                     success: function () {
                         // Finally destroy the spurious user we made.
-                        aUser.destroy({success: function () {
-                            response.success("setupTables ran to completion.");                        },
+                        aUser.destroy({useMasterKey: true,
+                            success: function () {
+                                response.success("setupTables ran to completion.");
+                            },
                             error: function (error) {
                                 response.error(error);
                             }
