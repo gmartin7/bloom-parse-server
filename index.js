@@ -30,6 +30,10 @@ var api = new ParseServer(serverConfig);
 // If you wish you require them, you can set them as options in the initialization above:
 // javascriptKey, restAPIKey, dotNetKey, clientKey
 
+// Because we are running this on Azure, for some reason, it cannot determine the connection is secure even if it is.
+// I tried setting trustProxy to true instead, but that still didn't work.
+// Setting this to true mirrors the way it is handled in https://github.com/Azure/parse-server-example (as of 12/7/16).
+var allowInsecureHTTP = true;
 var dashboard = new ParseDashboard({
     apps: [
         {
@@ -40,14 +44,13 @@ var dashboard = new ParseDashboard({
         production: serverConfig.serverURL.includes('production')
         }
     ],
-    trustProxy: 1,
     users: [
         {
         user: serverConfig.appId,
         pass: serverConfig.masterKey
         }
     ]
-});
+}, allowInsecureHTTP);
 
 var app = express();
 
