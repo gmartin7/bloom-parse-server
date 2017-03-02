@@ -7,9 +7,16 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-var hostname = "api.parse.com";
 var headers = {};
-var mode, attribute, environment = "test", remainingArgs = [];
+var mode, attribute, environment = "sandbox", remainingArgs = [];
+
+getHostName = function() {
+    if (environment == "prod") {
+        return "bloom-parse-server-production.azurewebsites.net";
+    }
+    // sandbox environment
+    return "bloom-parse-server-develop.azurewebsites.net";
+}
 
 //Pass in a readline object, and optionally a username and password
 //Returns an object with a username and a password property, using the passed in values if available
@@ -41,7 +48,7 @@ getCredentials = function (username, password) {
                             //This is manually clearing the line of the password entry and writing the prompt again.
                             //Essentially disconnecting the visible input from what we are receiving.
                             //This is using ANSI escape codes. \033[ is the Control Sequence Introducer
-                            //2K erases in line, the entire line, but doesn't move the cursor. 
+                            //2K erases in line, the entire line, but doesn't move the cursor.
                             //200D moves the cursor back n spaces, stopping at the edge of the screen
                             //Assumes prompts are less than 200 characters long
                             process.stdout.write("\033[2K\033[200D" + query);
@@ -62,10 +69,7 @@ getCredentials = function (username, password) {
 //Pass in the value obtained from getCredentials and the BloomLibrary environment to login to (test, sandbox, prod)
 //Will authenticate all future requests as the logged in user
 loginUser = function (creds, environment) {
-    if (environment == "test") {
-        headers['X-Parse-Application-Id'] = 'llt7pS0BDnuPvz7Laci2NY04jWWrzmDhlLapQVxv';
-        headers['X-Parse-REST-API-Key'] = 'ZklnIdWBqDUwZo9dR3tp7EAFWOEOU4O5rdv9NLfj';
-    } else if (environment == "sandbox") {
+    if (environment == "sandbox") {
         headers['X-Parse-Application-Id'] = 'yrXftBF6mbAuVu3fO6LnhCJiHxZPIdE7gl1DUVGR';
         headers['X-Parse-REST-API-Key'] = 'KZA7c0gAuwTD6kZHyO5iZm0t48RplaU7o3SHLKnj';
     } else if (environment == "prod") {
@@ -75,14 +79,14 @@ loginUser = function (creds, environment) {
 
     return new Promise(function (resolve, reject) {
         var options = {
-            host: hostname,
-            path: "/1/login?username=" + creds.username + "&password=" + creds.password,
+            host: getHostName(),
+            path: "/parse/login?username=" + creds.username + "&password=" + creds.password,
             headers: headers
         };
 
         https.get(options, (response) => {
             var body = '';
-            if (response.statusCode == 404) {
+            if (response.statusCode == 403 || response.statusCode == 404) {
                 reject(new Error("Invalid Login"));
             }
             response.on('data', function (chunk) {
@@ -109,7 +113,7 @@ batchUpdate = function (objects, tag) {
             for (var j = i; j < i + 50 && j < objects.length; j++) {
                 requests.push({
                     "method": "PUT",
-                    "path": "/1/classes/" + module.exports.classBeingBatchUpdated + "/" + objects[j].objectId,
+                    "path": "/parse/classes/" + module.exports.classBeingBatchUpdated + "/" + objects[j].objectId,
                     "body": module.exports.updateBodyForObject(objects[j], remainingArgs)
                 });
             }
@@ -117,9 +121,9 @@ batchUpdate = function (objects, tag) {
             var postHeaders = headers;
             postHeaders['Content-Type'] = 'application/json';
             var options = {
-                host: hostname,
+                host: getHostName(),
                 method: "POST",
-                path: "/1/batch",
+                path: "/parse/batch",
                 headers: postHeaders
             }
 
@@ -147,8 +151,8 @@ findObjects = function (attr, regex) {
         //TODO: this could be enhanced to handle regex options with this syntax: where={"name":{"$regex":"myregex","$options":"i"}}
         params[attr] = { "$regex": regex };
         var options = {
-            host: hostname,
-            path: "/1/classes/" + module.exports.classBeingBatchUpdated + "?limit=1000&where=" + encodeURIComponent(JSON.stringify(params)),
+            host: getHostName(),
+            path: "/parse/classes/" + module.exports.classBeingBatchUpdated + "?limit=1000&where=" + encodeURIComponent(JSON.stringify(params)),
             headers: headers
         };
 
@@ -339,6 +343,6 @@ module.exports = {
     batchOperationWithArgs: batchOperation,
 
     //Exposed for preparing for a batch operation
-    host: hostname,
+    host: getHostName(),
     headers: headers,
 };
