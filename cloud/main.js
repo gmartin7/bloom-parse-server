@@ -45,29 +45,14 @@ Parse.Cloud.define('testDB', function(req, res) {
     res.success('This function is not sophisticated enough to wait for async calls. Check server log to verify it completed.');
 });
 
-// This job updates all current records 'search' field.
-// Enhance: pull out common code in this and beforeSave("book").
-Parse.Cloud.define("populateSearch", function(request, response) {
-    // Set up to modify user data
-    // Parse.Cloud.useMasterKey();
-    console.log('entering bloom-parse-server main.js define populateSearch');
-    var counter = 0;
+// This function will call save on every book. This is useful for
+// applying the functionality in beforeSaveBook to every book,
+// particularly updating the tags and search fields.
+Parse.Cloud.define("saveAllBooks", function(request, response) {
     // Query for all books
     var query = new Parse.Query('books');
     query.each(function(book) {
-        var tags = book.get("tags");
-        var search = book.get("title").toLowerCase();
-        var index;
-        if (tags) {
-            console.log('TAGS IS DEFINED IN populateSearch');
-            for (index = 0; index < tags.length; ++index) {
-                search = search + " " + tags[index].toLowerCase();
-            }
-        } else {
-            book.set("tags", []); //repair broken database element so we can save it. Tags should not be null for mongoDB
-        }
-        book.set("search", search);
-        counter += 1;
+        book.set('updateSource', 'saveAllBooks'); // very important so we don't add system:incoming tag
         return book.save(null, { useMasterKey: true }).then(
             function() {},
             function(error) {
@@ -79,7 +64,7 @@ Parse.Cloud.define("populateSearch", function(request, response) {
         response.success("Update completed successfully.");
     }, function(error) {
         // Set the job's error status
-        response.error("Uh oh, something went wrong in populateSearch: " + error);
+        response.error("Uh oh, something went wrong in saveAllBooks: " + error);
     });
 });
 
@@ -421,6 +406,7 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
     query.get(bookId, {success: function(book) {
         var currentDownloadCount = book.get('downloadCount') || 0;
         book.set('downloadCount', currentDownloadCount + 1);
+        book.set('updateSource', 'incrementDownloadCount'); // very important so we don't add system:incoming tag
         book.save(null, { useMasterKey: true }).then(
             function() {},
             function(error) {
