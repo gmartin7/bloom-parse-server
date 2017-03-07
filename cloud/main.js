@@ -45,29 +45,14 @@ Parse.Cloud.define('testDB', function(req, res) {
     res.success('This function is not sophisticated enough to wait for async calls. Check server log to verify it completed.');
 });
 
-// This job updates all current records 'search' field.
-// Enhance: pull out common code in this and beforeSave("book").
-Parse.Cloud.define("populateSearch", function(request, response) {
-    // Set up to modify user data
-    // Parse.Cloud.useMasterKey();
-    console.log('entering bloom-parse-server main.js define populateSearch');
-    var counter = 0;
+// This function will call save on every book. This is useful for
+// applying the functionality in beforeSaveBook to every book,
+// particularly updating the tags and search fields.
+Parse.Cloud.define("saveAllBooks", function(request, response) {
     // Query for all books
     var query = new Parse.Query('books');
     query.each(function(book) {
-        var tags = book.get("tags");
-        var search = book.get("title").toLowerCase();
-        var index;
-        if (tags) {
-            console.log('TAGS IS DEFINED IN populateSearch');
-            for (index = 0; index < tags.length; ++index) {
-                search = search + " " + tags[index].toLowerCase();
-            }
-        } else {
-            book.set("tags", []); //repair broken database element so we can save it. Tags should not be null for mongoDB
-        }
-        book.set("search", search);
-        counter += 1;
+        book.set('updateSource', 'saveAllBooks'); // very important so we don't add system:incoming tag
         return book.save(null, { useMasterKey: true }).then(
             function() {},
             function(error) {
@@ -79,7 +64,7 @@ Parse.Cloud.define("populateSearch", function(request, response) {
         response.success("Update completed successfully.");
     }, function(error) {
         // Set the job's error status
-        response.error("Uh oh, something went wrong in populateSearch: " + error);
+        response.error("Uh oh, something went wrong in saveAllBooks: " + error);
     });
 });
 
@@ -137,7 +122,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
     }).then(function() {
         //Create a book query
         var bookQuery = new Parse.Query('books');
-        bookQuery.limit(1000); // default 100; unfortunately cannot set higher than 1000; need to do repeat queries to handle.
+        bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
 
         //Analyze a book's tags and languages and increment proper counts
         function incrementBookUsageCounts(books, index) {
@@ -182,20 +167,25 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                 //Resolved promise
                 return Parse.Promise.as();
             }
-            else if(tags[index] in counters.tag) {
-                counters.tag[tags[index]]++;
+
+            var tagName = tags[index];
+            if (tagName.indexOf(':') < 0) {
+                // In previous versions of Bloom, topics came in without the "topic:" prefix
+                tagName = 'topic:' + tagName;
+            }
+            if (tagName in counters.tag) {
+                counters.tag[tagName]++;
                 //Next tag
                 return incrementTagUsageCount(tags, index + 1);
-            }
-            else {
+            } else {
                 //If tag is not one already in the database, add the tag to the database
-                counters.tag[tags[index]] = 1;
+                counters.tag[tagName] = 1;
                 var parseClass = Parse.Object.extend('tag');
                 var newTag = new parseClass();
-                newTag.set("name", tags[index]);
+                newTag.set("name", tagName);
                 return newTag.save(null, { useMasterKey: true }).then(
                     function() {
-                        console.log("created tag " + tags[index]);
+                        console.log("created tag " + tagName);
                         //Next tag
                         return incrementTagUsageCount(tags, index + 1);
                     },
@@ -255,8 +245,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                 }
                 ,
                 function(error) { console.log("item.save failed: " + error); response.error("item.save failed: " + error); });
-            }
-            else {
+            } else {
                 //Destroy tag with count of 0
                 return item.destroy().then(function() {
                     return setTagUsageCount(data, index + 1);
@@ -307,9 +296,27 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     var index;
     if (tags) {
         for (index = 0; index < tags.length; ++index) {
-            search = search + " " + tags[index].toLowerCase();
+            var tagName = tags[index];
+            var indexOfColon = tagName.indexOf(":");
+            if (indexOfColon < 0) {
+                // From older versions of Bloom, topics come in without the "topic:" prefix
+                tags[index] = tagName = "topic:" + tagName;
+                indexOfColon = "topic:".length - 1;
+            }
+            // We only want to put the relevant information from the tag into the search string.
+            // i.e. for region:Asia, we only want Asia. We also exclude system tags.
+            // Our current search doesn't handle multi-string searching, anyway, so even if you knew
+            // to search for 'region:Asia' (which would never be obvious to the user), you would get
+            // a union of 'region' results and 'Asia' results.
+            // Other than 'system:', the prefixes are currently only used to separate out the labels
+            // in the sidebar of the browse view.
+            if (tagName.startsWith("system:"))
+                continue;
+            var tagNameForSearch = tagName.substr(indexOfColon + 1);
+            search = search + " " + tagNameForSearch.toLowerCase();
         }
     }
+    request.object.set("tags", tags);
     request.object.set("search", search);
 
     var creator = request.user;
@@ -399,6 +406,7 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
     query.get(bookId, {success: function(book) {
         var currentDownloadCount = book.get('downloadCount') || 0;
         book.set('downloadCount', currentDownloadCount + 1);
+        book.set('updateSource', 'incrementDownloadCount'); // very important so we don't add system:incoming tag
         book.save(null, { useMasterKey: true }).then(
             function() {},
             function(error) {
@@ -429,7 +437,7 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
     if (!allLicenses)
         contentQuery.startsWith("license", "cc-");
     contentQuery.ascending("title");
-    contentQuery.limit(1000); // max allowed...hoping no more than 1000 books in shelf??
+    contentQuery.limit(1000000); // default is 100, supposedly. We want all of them.
     contentQuery.find({
         success: function(shelfBooks) {
             var results = [];
