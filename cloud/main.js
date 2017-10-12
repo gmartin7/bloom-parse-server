@@ -567,7 +567,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "tools", type:"Array"},
                 {name: "updateSource", type:"String"},
                 {name: "uploader", type:"Pointer<_User>"},
-                {name: "lastUploaded", type:"Date"}
+                {name: "lastUploaded", type:"Date"},
+                {name: "leveledReaderLevel", type:"Number"}
             ]
         },
         {
