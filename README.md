@@ -38,7 +38,7 @@ Here is the full [Parse Server guide](https://github.com/ParsePlatform/parse-ser
 
 1. Run Parse Dashboard:
 
-    Go to [http://localhost:1337/dashboard] (http://localhost:1337/dashboard)
+    Go to [http://localhost:1337/dashboard](http://localhost:1337/dashboard)
 
     You will be required to log in. The username is the appId ('myAppId'), and the password is the masterKey ('123').
 
@@ -48,8 +48,8 @@ See above for setting up the dashboard locally.
 
 Public dashboards:
 
-* Production: [http://parsedashboard.bloomlibrary.org] (http://parsedashboard.bloomlibrary.org)        
-* Development: [http://dev.parsedashboard.bloomlibrary.org] (http://dev.parsedashboard.bloomlibrary.org)
+* Production: [http://parsedashboard.bloomlibrary.org](http://parsedashboard.bloomlibrary.org)        
+* Development: [http://dev.parsedashboard.bloomlibrary.org](http://dev.parsedashboard.bloomlibrary.org)
 
 You will be required to log in. The username is the appId, and the password is the masterKey.
 
