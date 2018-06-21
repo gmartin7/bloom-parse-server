@@ -21,7 +21,7 @@ var serverConfig = {
     apiKey: process.env.SENDGRID_API_KEY,
     fromAddress: 'reset@bloomlibrary.org',
   }),
-  publicServerURL: process.env.SERVER_URL || 'http://localhost:1337/parse', // apparently used by password reset emailer
+  publicServerURL: process.env.publicServerURL || 'http://localhost:1337/parse', // apparently used by password reset emailer
   verifyUserEmails:true,
   appName: process.env.APP_NAME || 'BloomLibrary.org'
 };
