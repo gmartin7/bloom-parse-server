@@ -135,6 +135,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
         function incrementBookUsageCounts(books, index) {
             //If we finished all the books, return resolved promise
             if(index >= books.length) {
+                request.log.info("Processed " + books.length + " books.");
                 return Parse.Promise.as();
             }
 
@@ -212,6 +213,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
         function setLangUsageCount(data, index) {
             //When done, return resolved promise
             if(index >= data.length) {
+                request.log.info("Processed " + data.length + " languages.");
                 return Parse.Promise.as();
             }
 
