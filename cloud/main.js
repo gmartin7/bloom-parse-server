@@ -78,6 +78,7 @@ Parse.Cloud.define("removeUnusedLanguages", function(request, response) {
     console.log('entering bloom-parse-server main.js removeUnusedLanguages');
 
     var allLangQuery = new Parse.Query('language');
+    allLangQuery.limit(1000000); // default is 100, supposedly. We want all of them.
     allLangQuery.find().then(function (languages) {
         var promise = Parse.Promise.as();
         for (var i = 0; i < languages.length; i++) {
@@ -232,6 +233,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
         }
 
         var langQuery = new Parse.Query('language');
+        langQuery.limit(100000); // default is 100, supposedly. We want all of them.
 
         //Cycle through languages, assigning usage counts
         return langQuery.find().then(function (results) {
@@ -263,6 +265,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
         }
 
         var tagQuery2 = new Parse.Query('tag');
+        tagQuery2.limit(100000); // default is 100, supposedly. We want all of them.
 
         //Cycle through tags in database
         return tagQuery2.find().then(function(results) {
