@@ -576,7 +576,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "leveledReaderLevel", type:"Number"},
                 {name: "country", type:"String"},
                 {name: "province", type:"String"},
-                {name: "district", type:"String"}
+                {name: "district", type:"String"},
+                {name: "a11yFeatures", type:"String"}
             ]
         },
         {
