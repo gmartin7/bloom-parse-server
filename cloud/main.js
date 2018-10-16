@@ -577,7 +577,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "country", type:"String"},
                 {name: "province", type:"String"},
                 {name: "district", type:"String"},
-                {name: "a11yFeatures", type:"String"}
+                {name: "features", type:"Array"}
             ]
         },
         {
