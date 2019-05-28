@@ -21,7 +21,7 @@ var serverConfig = {
 
   //password reset
   emailAdapter: SimpleSendGridAdapter({
-    apiKey: process.env.SENDGRID_API_KEY || '',
+    apiKey: process.env.SENDGRID_API_KEY || 'dummyKey', // Note that SimpleSendGridAdapater at some point throws an exception if the key is empty string
     fromAddress: 'reset@bloomlibrary.org',
   }),
   publicServerURL: process.env.publicServerURL || 'http://localhost:1337/parse', // apparently used by password reset emailer
