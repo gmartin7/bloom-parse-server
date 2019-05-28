@@ -652,6 +652,13 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "book", type:"Pointer<books>"},
                 {name: "index", type:"Integer"}
             ]
+        },
+        {
+            name: "publishedBooks",
+            fields: [
+                {name: "book", type:"Pointer<books>"},
+                {name: "warnings", type:"Array"}
+            ]
         }
     ];
 
