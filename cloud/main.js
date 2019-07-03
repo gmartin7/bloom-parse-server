@@ -577,7 +577,12 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "country", type:"String"},
                 {name: "province", type:"String"},
                 {name: "district", type:"String"},
-                {name: "features", type:"Array"}
+                {name: "features", type:"Array"},
+                // Fields required by Harvester
+                {name: "harvestState", type:"String"},
+                {name: "harvesterId", type:"String"},
+                {name: "harvestStartedAt", type:"Date"},
+                {name: "warnings", type:"Array"}
             ]
         },
         {

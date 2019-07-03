@@ -49,7 +49,7 @@ See above for setting up the dashboard locally.
 Public dashboards:
 
 * Production: [http://parsedashboard.bloomlibrary.org](http://parsedashboard.bloomlibrary.org)        
-* Development: [http://dev.parsedashboard.bloomlibrary.org](http://dev.parsedashboard.bloomlibrary.org)
+* Development: [http://dev-parsedashboard.bloomlibrary.org](http://dev-parsedashboard.bloomlibrary.org)
 
 You will be required to log in. The username is the appId, and the password is the masterKey.
 
