@@ -513,15 +513,21 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
 
 // This function is used to set up the fields used in the bloom library.
 // Adding something here should be the ONLY way fields and classes are added to parse.com.
-// After adding one, it is recommended that you first deploy the modified cloud code (see ReadMeParseComCloudCode.txt)
-// to our 'test' project, run it, and verify that the result are as expected.
+// After adding one, it is recommended that you first deploy the modified cloud code
+// to a test project, run it, and verify that the result are as expected.
 // Then try on the bloomlibrarysandbox (where you should also develop and test the
 // functionality that uses the new fields).
 // Finally deploy and run on the live database.
+// For more information about deploying, see the main README.md.
+//
 // Currently this will not delete fields or tables; if you want to do that it will have to be
 // by hand.
+//
 // Run this function from a command line like this (with the appropriate keys for the application inserted)
-// curl -X POST -H "X-Parse-Application-Id: <insert ID>"  -H "X-Parse-REST-API-Key: <insert REST key>" https://api.parse.com/1/functions/setupTables
+// curl -X POST -H "X-Parse-Application-Id: <App ID>" -H "X-Parse-Master-Key: <Master Key>" https://bloom-parse-server-production.azurewebsites.net/parse/functions/setupTables/
+//
+// Alternatively, you can use the parse server's dashboard's API Console to run the function:
+// parsedashboard.bloomlibrary.org or dev-parsedashboard.bloomlibrary.org
 Parse.Cloud.define("setupTables", function(request, response) {
     // Required BloomLibrary classes/fields
     // Note: code below currently requires that 'books' is first.
