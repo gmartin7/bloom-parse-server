@@ -31,7 +31,9 @@ var serverConfig = {
   //See IMPORTANT comment in public/choose-password.html
   customPages: {
       choosePassword: getChoosePasswordUrl(serverUrl) || 'http://localhost:1337/choose-password'
-  }
+  },
+
+  allowClientClassCreation: false
 };
 var api = new ParseServer(serverConfig);
 // Client-keys like the javascript key or the .NET key are not necessary with parse-server
