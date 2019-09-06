@@ -611,8 +611,9 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 // Fields required by Harvester
                 {name: "harvestState", type:"String"},
                 {name: "harvesterId", type:"String"},
+                {name: "harvesterVersion", type:"String"},
                 {name: "harvestStartedAt", type:"Date"},
-                {name: "warnings", type:"Array"},
+                {name: "harvestLog", type:"Array"},
                 // End fields required by Harvester
                 {name: "internetLimits", type:"Object"}
             ]
