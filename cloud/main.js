@@ -593,6 +593,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "pageCount", type:"Number"},
                 {name: "readerToolsAvailable", type:"Boolean"},
                 {name: "search", type:"String"},
+                {name: "show", type:"Object"},
                 {name: "suitableForMakingShells", type:"Boolean"},
                 {name: "suitableForVernacularLibrary", type:"Boolean"},
                 {name: "summary", type:"String"},
