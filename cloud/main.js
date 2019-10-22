@@ -565,6 +565,12 @@ Parse.Cloud.define("setupTables", function(request, response) {
     console.log('bloom-parse-server main.js define setupTables function');
     var classes = [
         {
+            name: "version",
+            fields: [
+                {name: "minDesktopVersion", type: "String"}
+            ]
+        },
+        {
             name: "books",
             fields: [
                 {name: "allTitles", type:"String"},
