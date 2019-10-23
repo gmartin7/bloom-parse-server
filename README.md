@@ -90,6 +90,10 @@ Once changes have been merged to the master branch,
 1. Follow the same steps as develop except the app service names are
     - bloom-parse-server-production
     - bloom-parse-server-production-staging
+    
+#### modifying the schema
+
+Once the changes have been deployed, you can run the setupTables function in main.js to modify the schema. See notes there.
 
 ### Azure Setup
 
