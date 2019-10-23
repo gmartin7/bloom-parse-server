@@ -70,8 +70,8 @@ Notes below on Azure Setup are relevant to deployment, but I wanted to separate 
 #### develop branch
 
 Once changes have been pushed to the develop branch,
-1. Go to the Azure portal
-2. Open the bloom-parse-server-development app service.
+1. Go to the Azure portal (portal.azure.com). Access must be granted by LTOps.
+2. Open the bloom-parse-server-develop app service.
 3. Open Deployment slots.
    - Note that steps 2 and 3 can be skipped by opening the staging app service directly.
 4. Open bloom-parse-server-develop-staging.
