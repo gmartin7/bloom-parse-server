@@ -551,7 +551,11 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
 // curl -X POST -H "X-Parse-Application-Id: <App ID>" -H "X-Parse-Master-Key: <Master Key>" https://bloom-parse-server-production.azurewebsites.net/parse/functions/setupTables/
 //
 // Alternatively, you can use the parse server's dashboard's API Console to run the function:
-// parsedashboard.bloomlibrary.org or dev-parsedashboard.bloomlibrary.org
+// parsedashboard.bloomlibrary.org or dev-parsedashboard.bloomlibrary.org.
+// Go to the API Console. type=POST, endpoint="functions/setupTables", useMasterKey=yes. Click Send Query.
+//
+// NOTE: There is reason to believe that using this function to add columns of type Object does not work
+// and that they must be added manually (in the dashboard) instead.
 Parse.Cloud.define("setupTables", function(request, response) {
     // Required BloomLibrary classes/fields
     // Note: code below currently requires that 'books' is first.
@@ -564,6 +568,12 @@ Parse.Cloud.define("setupTables", function(request, response) {
     // that refer to them.
     console.log('bloom-parse-server main.js define setupTables function');
     var classes = [
+        {
+            name: "version",
+            fields: [
+                {name: "minDesktopVersion", type: "String"}
+            ]
+        },
         {
             name: "books",
             fields: [
@@ -593,6 +603,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 {name: "pageCount", type:"Number"},
                 {name: "readerToolsAvailable", type:"Boolean"},
                 {name: "search", type:"String"},
+                {name: "show", type:"Object"},
                 {name: "suitableForMakingShells", type:"Boolean"},
                 {name: "suitableForVernacularLibrary", type:"Boolean"},
                 {name: "summary", type:"String"},
