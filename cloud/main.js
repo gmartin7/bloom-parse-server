@@ -731,7 +731,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "englishName", type: "String" },
                 { name: "key", type: "String" },
                 { name: "normallyVisible", type: "Boolean" },
-                { name: "owner", type: "Pointer<_User>" }
+                { name: "owner", type: "Pointer<_User>" },
+                { name: "category", type: "String" }
             ]
         },
         {
