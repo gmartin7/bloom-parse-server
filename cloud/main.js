@@ -493,43 +493,45 @@ Parse.Cloud.beforeSave("books", function(request, response) {
 });
 
 Parse.Cloud.afterSave("books", function(request) {
-    const bookshelfPrefix = "bookshelf:";
-    var book = request.object;
-    book.get("tags")
-        .filter(function(element) {
-            return element.indexOf(bookshelfPrefix) > -1;
-        })
-        .map(function(element) {
-            return element.substr(bookshelfPrefix.length);
-        })
-        .forEach(function(key) {
-            var Bookshelf = Parse.Object.extend("bookshelf");
-            var query = new Parse.Query(Bookshelf);
-            query.equalTo("key", key);
-            query.count({
-                success: function(count) {
-                    if (count == 0) {
-                        //Create a new bookshelf to contain this book with default properties
-                        var bookshelf = new Bookshelf();
-                        bookshelf.set("key", key);
-                        bookshelf.set("englishName", key);
-                        bookshelf.set("normallyVisible", false);
-                        bookshelf.save(null, { useMasterKey: true }).then(
-                            function() {},
-                            function(error) {
-                                console.log("bookshelf.save failed: " + error);
-                                response.error(
-                                    "bookshelf.save failed: " + error
-                                );
-                            }
-                        );
-                    }
-                },
-                error: function(error) {
-                    console.log("get error: " + error);
-                }
-            });
-        });
+    // We no longer wish to automatically create bookshelves.
+    // It is too easy for a user (or even us mistakenly) to create them.
+    // const bookshelfPrefix = "bookshelf:";
+    // var book = request.object;
+    // book.get("tags")
+    //     .filter(function(element) {
+    //         return element.indexOf(bookshelfPrefix) > -1;
+    //     })
+    //     .map(function(element) {
+    //         return element.substr(bookshelfPrefix.length);
+    //     })
+    //     .forEach(function(key) {
+    //         var Bookshelf = Parse.Object.extend("bookshelf");
+    //         var query = new Parse.Query(Bookshelf);
+    //         query.equalTo("key", key);
+    //         query.count({
+    //             success: function(count) {
+    //                 if (count == 0) {
+    //                     //Create a new bookshelf to contain this book with default properties
+    //                     var bookshelf = new Bookshelf();
+    //                     bookshelf.set("key", key);
+    //                     bookshelf.set("englishName", key);
+    //                     bookshelf.set("normallyVisible", false);
+    //                     bookshelf.save(null, { useMasterKey: true }).then(
+    //                         function() {},
+    //                         function(error) {
+    //                             console.log("bookshelf.save failed: " + error);
+    //                             response.error(
+    //                                 "bookshelf.save failed: " + error
+    //                             );
+    //                         }
+    //                     );
+    //                 }
+    //             },
+    //             error: function(error) {
+    //                 console.log("get error: " + error);
+    //             }
+    //         });
+    //     });
 
     try {
         //send email if this didn't exist before
