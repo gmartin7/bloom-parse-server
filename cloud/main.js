@@ -224,6 +224,7 @@ Parse.Cloud.define("removeUnusedBookshelves", function(request, response) {
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://bloom-parse-server-develop.azurewebsites.net/parse/functions/populateCounts
 Parse.Cloud.define("populateCounts", function(request, response) {
     console.log("entering bloom-parse-server main.js populateCounts");
+    request.log.info("Starting populateCounts.");
 
     var counters = { language: {}, tag: {} };
 
@@ -323,22 +324,25 @@ Parse.Cloud.define("populateCounts", function(request, response) {
             function setLangUsageCount(data, index) {
                 //When done, return resolved promise
                 if (index >= data.length) {
-                    request.log.info(
-                        "Processed " + data.length + " languages."
-                    );
+                    request.log.info(`Processed ${data.length} languages.`);
                     return Parse.Promise.as();
                 }
 
-                var item = data[index];
-                item.set("usageCount", counters.language[item.id] || 0);
-                return item.save(null, { useMasterKey: true }).then(
+                var language = data[index];
+                var languageId = language.id;
+                language.set("usageCount", counters.language[languageId] || 0);
+                return language.save(null, { useMasterKey: true }).then(
                     function() {
                         //Next language
                         return setLangUsageCount(data, index + 1);
                     },
                     function(error) {
-                        console.log("item.save failed: " + error);
-                        response.error("item.save failed: " + error);
+                        console.log(
+                            `language ${languageId} save failed: ${error}`
+                        );
+                        response.error(
+                            `language ${languageId} save failed: ${error}`
+                        );
 
                         //Next language
                         return setLangUsageCount(data, index + 1);
@@ -363,12 +367,12 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                     return Parse.Promise.as();
                 }
 
-                var item = data[index];
-                var tagName = item.get("name");
+                var tag = data[index];
+                var tagName = tag.get("name");
                 var count = counters.tag[tagName];
                 if (count > 0) {
-                    item.set("usageCount", count);
-                    return item.save(null, { useMasterKey: true }).then(
+                    tag.set("usageCount", count);
+                    return tag.save(null, { useMasterKey: true }).then(
                         function() {
                             // Next tag
                             return setTagUsageCount(data, index + 1);
@@ -385,7 +389,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                     );
                 } else {
                     //Destroy tag with count of 0
-                    return item.destroy({ useMasterKey: true }).then(
+                    return tag.destroy({ useMasterKey: true }).then(
                         function() {
                             // Next tag
                             return setTagUsageCount(data, index + 1);
