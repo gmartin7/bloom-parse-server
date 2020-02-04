@@ -339,6 +339,9 @@ Parse.Cloud.define("populateCounts", function(request, response) {
                     function(error) {
                         console.log("item.save failed: " + error);
                         response.error("item.save failed: " + error);
+
+                        //Next language
+                        return setLangUsageCount(data, index + 1);
                     }
                 );
             }
@@ -356,27 +359,49 @@ Parse.Cloud.define("populateCounts", function(request, response) {
             function setTagUsageCount(data, index) {
                 //Return resolved promise when done
                 if (index >= data.length) {
+                    request.log.info(`Processed ${data.length} tags.`);
                     return Parse.Promise.as();
                 }
 
                 var item = data[index];
-                var count = counters.tag[item.get("name")];
+                var tagName = item.get("name");
+                var count = counters.tag[tagName];
                 if (count > 0) {
                     item.set("usageCount", count);
                     return item.save(null, { useMasterKey: true }).then(
                         function() {
+                            // Next tag
                             return setTagUsageCount(data, index + 1);
                         },
                         function(error) {
-                            console.log("item.save failed: " + error);
-                            response.error("item.save failed: " + error);
+                            console.log(`tag ${tagName} save failed: ${error}`);
+                            response.error(
+                                `tag ${tagName} save failed: ${error}`
+                            );
+
+                            // Next tag
+                            return setTagUsageCount(data, index + 1);
                         }
                     );
                 } else {
                     //Destroy tag with count of 0
-                    return item.destroy().then(function() {
-                        return setTagUsageCount(data, index + 1);
-                    });
+                    return item.destroy({ useMasterKey: true }).then(
+                        function() {
+                            // Next tag
+                            return setTagUsageCount(data, index + 1);
+                        },
+                        function(error) {
+                            console.log(
+                                `tag ${tagName} destroy failed: ${error}`
+                            );
+                            response.error(
+                                `tag ${tagName} destroy failed: ${error}`
+                            );
+
+                            // Next tag
+                            return setTagUsageCount(data, index + 1);
+                        }
+                    );
                 }
             }
 
@@ -451,7 +476,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     // Unfortunately, that means we simply had to add authors to the schema. (BL-4001)
 
     var tags = book.get("tags");
-    var search = book.get("title").toLowerCase();
+    var search = (book.get("title") || "").toLowerCase();
     var index;
     if (tags) {
         for (index = 0; index < tags.length; ++index) {
@@ -1027,4 +1052,67 @@ Parse.Cloud.define("setupTables", function(request, response) {
             }
         }
     );
+});
+
+// This function expects to be passed params containing an id and JWT token
+// from a successful auth0 login. It looks for a parse-server identity whose
+// username is that same ID. If it finds one, and it is not already linked
+// to an auth0 identity, it links them, so that henceforth that auth0 identity
+// can be used to log in to the parse-server one.
+// If it does not find a corresponding parse-server identity, it creates
+// one and links them.
+// To make a link the token must validate, which currently means it must
+// have a verified email address."
+Parse.Cloud.define("bloomLink", async function(request, response) {
+    var id = request.params.id;
+    //console.log("request: " + JSON.stringify(request));
+    const query = new Parse.Query("User");
+    query.equalTo("username", id);
+    const results = await query.find({ useMasterKey: true });
+    let user;
+    if (results.length == 0) {
+        // We need a new parse user to correspond to the auth0 credentials.
+        // We want to make a user with the specified ID. The standard approach
+        // to making a user with the specified authData produces a random ID.
+        // So, we will use the standard login procedure. This requires a password.
+        // This is a (not super secure) approach to producing a random one.
+        // No one will ever be able to discover it again, so anything that needs
+        // it had better be done now!
+        var pw = Math.random()
+            .toString(36)
+            .slice(-10);
+        user = await Parse.User.signUp(id, pw, { email: id });
+        //console.log("signed up " + JSON.stringify(user));
+    } else {
+        user = results[0];
+    }
+    //console.log("got user " + JSON.stringify(user));
+    const token = request.params.token;
+    // Note: at one point I set the id field from user.username. That ought to be
+    // the same as id, since we searched for and if necessary created a user with that
+    // username. In fact, however, it was always undefined.
+    const authData = { bloom: { id: id, token: token } };
+    //console.log("authdata from params: " + JSON.stringify(authData));
+    if (!user.authData) {
+        //console.log("setting user authdata");
+        user.set("authData", authData, { useMasterKey: true });
+        user.save(null, { useMasterKey: true }).then(
+            () => {
+                //console.log("user: " + JSON.stringify(user));
+                response.success("did it!");
+            },
+            error => {
+                response.error(error);
+            }
+        );
+    } else {
+        response.success("existing");
+    }
+    // Instead of one of the two success responses above, we should now be able to log
+    // them in and return a token. That would save the client another http
+    // request. But I haven't been able to get it to work. Parse documentation tells
+    // how to log in using custom auth with the REST API, but not with the Javascript API.
+    // const linkResult = await user.linkWith(user, authData); // fails, linkWith is not a function
+    // console.log("after login user " + JSON.stringify(user));
+    // console.log("after login linkResult " + JSON.stringify(linkResult));
 });
