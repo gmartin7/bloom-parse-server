@@ -1,4 +1,4 @@
-require("./emails.js"); // allows email-specific could functions to be defined
+require("./emails.js"); // allows email-specific cloud functions to be defined
 
 Parse.Cloud.define("hello", function(req, res) {
     var book = {
@@ -106,57 +106,38 @@ Parse.Cloud.define("saveAllBooks", function(request, response) {
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert master key>" -d '{}' https://bloom-parse-server-develop.azurewebsites.net/parse/functions/removeUnusedLanguages
 // (In theory, the -d '{}' shouldn't be needed because we are not passing any parameters, but it doesn't work without it.)
-Parse.Cloud.define("removeUnusedLanguages", function(request, response) {
+Parse.Cloud.define("removeUnusedLanguages", async () => {
     console.log("entering bloom-parse-server main.js removeUnusedLanguages");
 
     var allLangQuery = new Parse.Query("language");
     allLangQuery.limit(1000000); // default is 100, supposedly. We want all of them.
-    allLangQuery
-        .find()
-        .then(function(languages) {
-            var promise = Parse.Promise.as();
-            for (var i = 0; i < languages.length; i++) {
-                // Use IIFE to pass the correct language down
-                (function() {
-                    var lang = languages[i];
-                    var bookQuery = new Parse.Query("books");
-                    bookQuery.equalTo("langPointers", lang);
-                    promise = promise.then(function() {
-                        return bookQuery.count().then(function(count) {
-                            if (count === 0) {
-                                console.log(
-                                    "Deleting language " +
-                                        lang.get("name") +
-                                        " because no books use it."
-                                );
-                                return lang.destroy({
-                                    useMasterKey: true,
-                                    success: function() {
-                                        console.log("Deletion successful.");
-                                    },
-                                    error: function(error) {
-                                        console.log(
-                                            "Deletion failed: " + error
-                                        );
-                                    }
-                                });
-                            }
+    await allLangQuery.find().then(languages => {
+        var promise = Promise.resolve();
+        for (var i = 0; i < languages.length; i++) {
+            // Use IIFE to pass the correct language down
+            (() => {
+                var lang = languages[i];
+                var bookQuery = new Parse.Query("books");
+                bookQuery.equalTo("langPointers", lang);
+                promise = promise.then(async () => {
+                    const count = await bookQuery.count();
+                    if (count === 0) {
+                        console.log(
+                            "Deleting language " +
+                                lang.get("name") +
+                                " because no books use it."
+                        );
+                        await lang.destroy({
+                            useMasterKey: true
                         });
-                    });
-                })();
-            }
-            return promise;
-        })
-        .then(
-            function() {
-                response.success(
-                    "removeUnusedLanguages completed successfully."
-                );
-            },
-            function(error) {
-                response.error("Error in removeUnusedLanguages: " + error);
-            }
-        );
+                    }
+                });
+            })();
+        }
+        return promise;
+    });
+
+    return "removeUnusedLanguages completed successfully.";
 });
 
 // This job will remove any bookshelf records which currently do not have any books which use them.
