@@ -1059,14 +1059,13 @@ Parse.Cloud.define("setupTables", function(request, response) {
 });
 
 // This function expects to be passed params containing an id and JWT token
-// from a successful auth0 login. It looks for a parse-server identity whose
-// username is that same ID. If it finds one, and it is not already linked
-// to an auth0 identity, it links them, so that henceforth that auth0 identity
-// can be used to log in to the parse-server one.
+// from a successful firebase login. It looks for a parse-server identity whose
+// username is that same ID. If it finds one, it does nothing...the
+// bloomFirebaseAuthAdapter code will simply match up the identities.
 // If it does not find a corresponding parse-server identity, it creates
-// one and links them.
-// To make a link the token must validate, which currently means it must
-// have a verified email address."
+// one.
+// The token is not actually currently used. We might decide to authenticate it
+// at some point.
 Parse.Cloud.define("bloomLink", async function(request, response) {
     var id = request.params.id;
     //console.log(" bloomLink with request: " + JSON.stringify(request));
@@ -1076,7 +1075,7 @@ Parse.Cloud.define("bloomLink", async function(request, response) {
     let user;
     if (results.length == 0) {
         //console.log("User not found in bloomLink: " + id);
-        // We need a new parse user to correspond to the auth0 credentials.
+        // We need a new parse user to correspond to the firebase credentials.
         // We want to make a user with the specified ID. The standard approach
         // to making a user with the specified authData produces a random ID.
         // So, we will use the standard login procedure. This requires a password.
@@ -1094,7 +1093,7 @@ Parse.Cloud.define("bloomLink", async function(request, response) {
     response.success("got user");
     return;
     // The following code saves authData corresponding to the current token.
-    // However, we don't actually need any: the bloomAuth0Adapter is happy to
+    // However, we don't actually need any: the bloomFirebaseAuthAdapter is happy to
     // authorize any user given a valid firebase authentication token from the
     // right source, properly encrypted, and for a user with the right email.
 
