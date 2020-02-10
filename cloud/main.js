@@ -1067,30 +1067,34 @@ Parse.Cloud.define("setupTables", function(request, response) {
 // The token is not actually currently used. We might decide to authenticate it
 // at some point.
 Parse.Cloud.define("bloomLink", async function(request, response) {
-    var id = request.params.id;
-    //console.log(" bloomLink with request: " + JSON.stringify(request));
-    const query = new Parse.Query("User");
-    query.equalTo("username", id);
-    const results = await query.find({ useMasterKey: true });
-    let user;
-    if (results.length == 0) {
-        //console.log("User not found in bloomLink: " + id);
-        // We need a new parse user to correspond to the firebase credentials.
-        // We want to make a user with the specified ID. The standard approach
-        // to making a user with the specified authData produces a random ID.
-        // So, we will use the standard login procedure. This requires a password.
-        // This is a (not super secure) approach to producing a random one.
-        // No one will ever be able to discover it again, so anything that needs
-        // it had better be done now!
-        var pw = Math.random()
-            .toString(36)
-            .slice(-10);
-        user = await Parse.User.signUp(id, pw, { email: id });
-        //console.log("signed up " + JSON.stringify(user));
-    } else {
-        user = results[0];
+    try {
+        var id = request.params.id;
+        //console.log(" bloomLink with request: " + JSON.stringify(request));
+        const query = new Parse.Query("User");
+        query.equalTo("username", id);
+        const results = await query.find({ useMasterKey: true });
+        let user;
+        if (results.length == 0) {
+            //console.log("User not found in bloomLink: " + id);
+            // We need a new parse user to correspond to the firebase credentials.
+            // We want to make a user with the specified ID. The standard approach
+            // to making a user with the specified authData produces a random ID.
+            // So, we will use the standard login procedure. This requires a password.
+            // This is a (not super secure) approach to producing a random one.
+            // No one will ever be able to discover it again, so anything that needs
+            // it had better be done now!
+            var pw = Math.random()
+                .toString(36)
+                .slice(-10);
+            user = await Parse.User.signUp(id, pw, { email: id });
+            //console.log("signed up " + JSON.stringify(user));
+        } else {
+            user = results[0];
+        }
+        response.success("got user");
+    } catch (e) {
+        response.error(e);
     }
-    response.success("got user");
     return;
     // The following code saves authData corresponding to the current token.
     // However, we don't actually need any: the bloomFirebaseAuthAdapter is happy to
