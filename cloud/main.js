@@ -1059,23 +1059,23 @@ Parse.Cloud.define("setupTables", function(request, response) {
 });
 
 // This function expects to be passed params containing an id and JWT token
-// from a successful auth0 login. It looks for a parse-server identity whose
-// username is that same ID. If it finds one, and it is not already linked
-// to an auth0 identity, it links them, so that henceforth that auth0 identity
-// can be used to log in to the parse-server one.
+// from a successful firebase login. It looks for a parse-server identity whose
+// username is that same ID. If it finds one, it does nothing...the
+// bloomFirebaseAuthAdapter code will simply match up the identities.
 // If it does not find a corresponding parse-server identity, it creates
-// one and links them.
-// To make a link the token must validate, which currently means it must
-// have a verified email address."
+// one.
+// The token is not actually currently used. We might decide to authenticate it
+// at some point.
 Parse.Cloud.define("bloomLink", async function(request, response) {
     var id = request.params.id;
-    //console.log("request: " + JSON.stringify(request));
+    //console.log(" bloomLink with request: " + JSON.stringify(request));
     const query = new Parse.Query("User");
     query.equalTo("username", id);
     const results = await query.find({ useMasterKey: true });
     let user;
     if (results.length == 0) {
-        // We need a new parse user to correspond to the auth0 credentials.
+        //console.log("User not found in bloomLink: " + id);
+        // We need a new parse user to correspond to the firebase credentials.
         // We want to make a user with the specified ID. The standard approach
         // to making a user with the specified authData produces a random ID.
         // So, we will use the standard login procedure. This requires a password.
@@ -1090,33 +1090,58 @@ Parse.Cloud.define("bloomLink", async function(request, response) {
     } else {
         user = results[0];
     }
-    //console.log("got user " + JSON.stringify(user));
-    const token = request.params.token;
-    // Note: at one point I set the id field from user.username. That ought to be
-    // the same as id, since we searched for and if necessary created a user with that
-    // username. In fact, however, it was always undefined.
-    const authData = { bloom: { id: id, token: token } };
-    //console.log("authdata from params: " + JSON.stringify(authData));
-    if (!user.authData) {
-        //console.log("setting user authdata");
-        user.set("authData", authData, { useMasterKey: true });
-        user.save(null, { useMasterKey: true }).then(
-            () => {
-                //console.log("user: " + JSON.stringify(user));
-                response.success("did it!");
-            },
-            error => {
-                response.error(error);
-            }
-        );
-    } else {
-        response.success("existing");
-    }
+    response.success("got user");
+    return;
+    // The following code saves authData corresponding to the current token.
+    // However, we don't actually need any: the bloomFirebaseAuthAdapter is happy to
+    // authorize any user given a valid firebase authentication token from the
+    // right source, properly encrypted, and for a user with the right email.
+
+    //console.log("bloomLink got user " + JSON.stringify(user));
+    // const token = request.params.token;
+    // // Note: at one point I set the id field from user.username. That ought to be
+    // // the same as id, since we searched for and if necessary created a user with that
+    // // username. In fact, however, it was always undefined.
+    // const authData = { bloom: { id: id, token: token } };
+    // //console.log("bloomLink authdata from params: " + JSON.stringify(authData));
+
+    // // The user object we get is in some bizarre state where stringify indicates it
+    // // has an authData property, but user.authData is null. This stringify/parse
+    // // converts it into a conventional object that works as expected.
+    // user = JSON.parse(JSON.stringify(user));
+    // // console.log(
+    // //     "bloomLink authdata from user: " + JSON.stringify(user.authData)
+    // // );
+
+    // if (!user.authData) {
+    //     // console.log(
+    //     //     "bloomLink setting user authdata to " + JSON.stringify(authData)
+    //     // );
+    //     user.set("authData", authData, { useMasterKey: true });
+    //     user.save(null, { useMasterKey: true }).then(
+    //         () => {
+    //             //console.log("bloomLink saved user: " + JSON.stringify(user));
+    //             response.success("did it!");
+    //         },
+    //         error => {
+    //             console.log(
+    //                 "bloomLink failed to save " + JSON.stringify(error)
+    //             );
+    //             response.error(error);
+    //         }
+    //     );
+    // } else {
+    //     // console.log(
+    //     //     "bloomLink found existing authData: " +
+    //     //         JSON.stringify(user.authData)
+    //     // );
+    //     response.success("existing");
+    // }
     // Instead of one of the two success responses above, we should now be able to log
     // them in and return a token. That would save the client another http
     // request. But I haven't been able to get it to work. Parse documentation tells
     // how to log in using custom auth with the REST API, but not with the Javascript API.
-    // const linkResult = await user.linkWith(user, authData); // fails, linkWith is not a function
+    // const linkResult = await user.linkWith(user, authData); // fails, linkWith is not a function (even before stringify/parse above)
     // console.log("after login user " + JSON.stringify(user));
     // console.log("after login linkResult " + JSON.stringify(linkResult));
 });
