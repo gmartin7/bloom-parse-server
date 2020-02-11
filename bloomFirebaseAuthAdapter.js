@@ -1,8 +1,6 @@
 const Parse = require("parse/node").Parse;
 const httpsRequest = require("./httpsRequest");
-const NodeRSA = require("node-rsa");
 const jwt = require("jsonwebtoken");
-const admin = require("firebase-admin");
 
 // This adapter, modified from the 'apple' one in parse-server, validates a user when
 // presented with a valid, current firebase-auth token from the appropriate domain whose email
