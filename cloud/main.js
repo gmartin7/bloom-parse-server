@@ -813,7 +813,12 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "harvestLog", type: "Array" },
                 // End fields required by Harvester
                 { name: "internetLimits", type: "Object" },
-                { name: "importedBookSourceUrl", type: "String" }
+                { name: "importedBookSourceUrl", type: "String" },
+                // Fields required by RoseGarden
+                { name: "importerName", type: "String" },
+                { name: "importerMajorVersion", type: "Number" },
+                { name: "importerMinorVersion", type: "Number" }
+                // End fields required by RoseGarden
             ]
         },
         {
