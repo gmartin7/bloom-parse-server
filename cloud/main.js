@@ -837,8 +837,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
             name: "downloadHistory",
             fields: [
                 { name: "bookId", type: "String" },
-                { name: "userIp", type: "String" },
-                { name: "userName", type: "String" }
+                { name: "userIp", type: "String" }
             ]
         },
         {
