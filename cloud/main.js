@@ -239,6 +239,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
             //Create a book query
             var bookQuery = new Parse.Query("books");
             bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
+            bookQuery.containedIn("inCirculation", [true, undefined]);
 
             //Analyze a book's tags and languages and increment proper counts
             function incrementBookUsageCounts(books, index) {
