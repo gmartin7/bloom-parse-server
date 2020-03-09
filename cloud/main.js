@@ -239,6 +239,7 @@ Parse.Cloud.define("populateCounts", function(request, response) {
             //Create a book query
             var bookQuery = new Parse.Query("books");
             bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
+            bookQuery.containedIn("inCirculation", [true, undefined]);
 
             //Analyze a book's tags and languages and increment proper counts
             function incrementBookUsageCounts(books, index) {
@@ -804,6 +805,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "province", type: "String" },
                 { name: "district", type: "String" },
                 { name: "features", type: "Array" },
+                { name: "publisher", type: "String" },
                 // Fields required by Harvester
                 { name: "harvestState", type: "String" },
                 { name: "harvesterId", type: "String" },
@@ -813,7 +815,12 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "harvestLog", type: "Array" },
                 // End fields required by Harvester
                 { name: "internetLimits", type: "Object" },
-                { name: "importedBookSourceUrl", type: "String" }
+                { name: "importedBookSourceUrl", type: "String" },
+                // Fields required by RoseGarden
+                { name: "importerName", type: "String" },
+                { name: "importerMajorVersion", type: "Number" },
+                { name: "importerMinorVersion", type: "Number" }
+                // End fields required by RoseGarden
             ]
         },
         {
@@ -821,6 +828,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
             fields: [
                 { name: "englishName", type: "String" },
                 { name: "key", type: "String" },
+                { name: "logoUrl", type: "String" },
                 { name: "normallyVisible", type: "Boolean" },
                 { name: "owner", type: "Pointer<_User>" },
                 { name: "category", type: "String" }
@@ -830,8 +838,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
             name: "downloadHistory",
             fields: [
                 { name: "bookId", type: "String" },
-                { name: "userIp", type: "String" },
-                { name: "userName", type: "String" }
+                { name: "userIp", type: "String" }
             ]
         },
         {
