@@ -805,7 +805,20 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "province", type: "String" },
                 { name: "district", type: "String" },
                 { name: "features", type: "Array" },
+                // Name of the organization or entity that published this book.  It may be null if self-published.
                 { name: "publisher", type: "String" },
+                // When people make derivative works, that work is no longer "published" by the people who made
+                // the shell book. So "publisher" might become empty, or might get a new organization. But we still
+                // want to be able to acknowledge what org gave us this shellbook, and list it on their page
+                // (indicating that this is a derived book that they are not responsible for). So ideally new
+                // shellbooks that have a "publisher" also have that same value in "originalPublisher".
+                // "originalPublisher" will never be cleared by BloomDesktop.
+                { name: "originalPublisher", type: "String" },
+                // This is a "perceptual hash" (http://phash.org/) of the image in the first bloom-imageContainer
+                // we find on the first page after any xmatter pages. We use this to suggest which books are
+                // probably related to each other. This allows us to link, for example, books that are translations
+                // of each other.  (https://www.nuget.org/packages/Shipwreck.Phash/ is used to calculate the phash.)
+                { name: "phashOfFirstContentImage", type: "String" },
                 // Fields required by Harvester
                 { name: "harvestState", type: "String" },
                 { name: "harvesterId", type: "String" },
