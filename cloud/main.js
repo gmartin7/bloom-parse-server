@@ -614,13 +614,13 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
         // where they don't want to allow you to modify it without permission,
         // presumably to ensure that bad info doesn't go out.)
         const overlook = new Parse.Query("books");
-        overlook.containedIn("tags", "system:overlookClosedLicense");
+        overlook.equalTo("tags", "system:overlookClosedLicense");
 
         const publicOrOverlook = Parse.Query.or(public, overlook);
         return Parse.Query.and(publicOrOverlook, query);
     };
 
-    let featuredBooksQuery = Parse.Query("books");
+    let featuredBooksQuery = new Parse.Query("books");
     featuredBooksQuery.equalTo("tags", "bookshelf:Featured");
     if (!includeOutOfCirculation)
         featuredBooksQuery.containedIn("inCirculation", [true, undefined]);
