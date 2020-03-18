@@ -505,9 +505,15 @@ Parse.Cloud.beforeSave("books", function(request, response) {
                     "bookshelves",
                     tagName.replace("bookshelf:", "")
                 );
-            } else {
-                tagsOutput.push(tagName);
             }
+            /* TODO: Mar 2020: we are leaving bookshelf:foobar tags in for now so that we don't have to go into
+            the legacy angular code and adjust it to this new system. But once we retire that, we
+            should uncomment this else block so that the bookshelf tag is stripped, then run SaveAllBooks()
+            to remove it from all the records.
+             else {*/
+            tagsOutput.push(tagName);
+            /* } */
+
             // We only want to put the relevant information from the tag into the search string.
             // i.e. for region:Asia, we only want Asia. We also exclude system tags.
             // Our current search doesn't handle multi-string searching, anyway, so even if you knew
