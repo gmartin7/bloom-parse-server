@@ -1,73 +1,5 @@
+/* eslint-disable no-undef */
 require("./emails.js"); // allows email-specific could functions to be defined
-
-Parse.Cloud.define("hello", function(req, res) {
-    var book = {
-        title: "the title",
-        uploader: "the uploader",
-        copyright: "the copyright",
-        license: "the license",
-        bookId: "theBookId"
-    };
-    res.success("Hi");
-    console.log("bloom-parse-server cloud-code: hello function");
-});
-
-Parse.Cloud.define("testDB", function(req, res) {
-    console.log("bloom-parse-server cloud-code: testDB");
-    try {
-        console.log(
-            "bloom-parse-server cloud-code: testDB: trying to read GameScore"
-        );
-        var GameScore = Parse.Object.extend("GameScore");
-        var query = new Parse.Query(GameScore);
-        query.count({
-            success: function(gameScore) {
-                console.log(
-                    "bloom-parse-server cloud-code: testDB: GameScore read succeeded"
-                );
-            },
-            error: function(object, error) {
-                console.log(
-                    "bloom-parse-server cloud-code: testDB: GameScore read failed: " +
-                        error
-                );
-            }
-        });
-    } catch (ex) {
-        console.log(
-            "bloom-parse-server cloud-code: testDB: testDB GameScore read threw exception: " +
-                ex
-        );
-    }
-
-    try {
-        var parseClass = Parse.Object.extend("testDB");
-        var instance = new parseClass();
-        instance.set("test", "foo");
-        console.log("bloom-parse-server cloud-code: testDB: writing...");
-        instance.save(null, {
-            useMasterKey: true,
-            success: function(newObj) {
-                console.log(
-                    "bloom-parse-server cloud-code: testDB: save succeeded"
-                );
-            },
-            error: function(error) {
-                console.log(
-                    "bloom-parse-server cloud-code: testDB: save failed" + error
-                );
-            }
-        });
-    } catch (error) {
-        console.log(
-            "bloom-parse-server cloud-code: testDB: testDB failed: " + error
-        );
-        res.error("write failed: " + error);
-    }
-    res.success(
-        "This function is not sophisticated enough to wait for async calls. Check server log to verify it completed."
-    );
-});
 
 // This function will call save on every book. This is useful for
 // applying the functionality in beforeSaveBook to every book,
@@ -526,7 +458,7 @@ Parse.Cloud.afterSave("books", function(request) {
     // We no longer wish to automatically create bookshelves.
     // It is too easy for a user (or even us mistakenly) to create them.
     // const bookshelfPrefix = "bookshelf:";
-    // var book = request.object;
+    var book = request.object;
     // book.get("tags")
     //     .filter(function(element) {
     //         return element.indexOf(bookshelfPrefix) > -1;
@@ -625,8 +557,8 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
             book.save(null, { useMasterKey: true }).then(
                 function() {},
                 function(error) {
-                    console.log("book.save failed: " + error);
-                    response.error("book.save failed: " + error);
+                    console.error("book.save failed: " + error);
+                    throw "book.save failed: " + error;
                 }
             );
         },
@@ -636,6 +568,7 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
     });
 });
 
+// March 2020: The following is only used by legacy (angular) BloomLibrary.
 // Return the books that should be shown in the default browse view.
 // Currently this is those in the Featured bookshelf, followed by all the others.
 // Each group is sorted alphabetically by title.
@@ -645,16 +578,38 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
     var count = request.params.count;
     var includeOutOfCirculation = request.params.includeOutOfCirculation;
     var allLicenses = request.params.allLicenses == true;
-    var contentQuery = new Parse.Query("books");
-    contentQuery.equalTo("tags", "bookshelf:Featured");
+
+    // In legacy bloomlibrary.org (angular), we hide books that aren't CC
+    // licensed. This is currently (Mar 2020) just 1% of our books, and also
+    // now we have a "use" for even closed-licensed books (reading on the web)
+    // so we might not do this in the new (react) blorg.
+    const restrictByLicense = query => {
+        var public = new Parse.Query("books");
+        public.startsWith("license", "cc"); // Not cc- so we include cc0
+
+        // We have some books (ok, just one at the moment) that are not CC
+        // but that's for a good reason (at the moment, a covid-19 health book
+        // where they don't want to allow you to modify it without permission,
+        // presumably to ensure that bad info doesn't go out.)
+        const overlook = new Parse.Query("books");
+        overlook.containedIn("tags", "system:overlookClosedLicense");
+
+        const publicOrOverlook = Parse.Query.or(public, overlook);
+        return Parse.Query.and(publicOrOverlook, query);
+    };
+
+    let featuredBooksQuery = Parse.Query("books");
+    featuredBooksQuery.equalTo("tags", "bookshelf:Featured");
     if (!includeOutOfCirculation)
-        contentQuery.containedIn("inCirculation", [true, undefined]);
-    contentQuery.include("langPointers");
-    contentQuery.include("uploader");
-    if (!allLicenses) contentQuery.startsWith("license", "cc-");
-    contentQuery.ascending("title");
-    contentQuery.limit(1000000); // default is 100, supposedly. We want all of them.
-    contentQuery.find({
+        featuredBooksQuery.containedIn("inCirculation", [true, undefined]);
+
+    if (!allLicenses)
+        featuredBooksQuery = restrictByLicense(featuredBooksQuery);
+    featuredBooksQuery.include("langPointers");
+    featuredBooksQuery.include("uploader");
+    featuredBooksQuery.ascending("title");
+    featuredBooksQuery.limit(1000000); // default is 100, supposedly. We want all of them.
+    featuredBooksQuery.find({
         success: function(shelfBooks) {
             var results = [];
             var shelfIds = Object.create(null); // create an object with no properties to be a set
@@ -670,15 +625,18 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
             // This function implements a query loop by calling itself inside each
             // promise fulfilment if more results are needed.
             var runQuery = function() {
-                var allBooksQuery = new Parse.Query("books");
+                let allBooksQuery = new Parse.Query("books");
                 if (!includeOutOfCirculation)
                     allBooksQuery.containedIn("inCirculation", [
                         true,
                         undefined
                     ]);
+
+                if (!allLicenses) {
+                    allBooksQuery = restrictByLicense(allBooksQuery);
+                }
                 allBooksQuery.include("langPointers");
                 allBooksQuery.include("uploader");
-                if (!allLicenses) allBooksQuery.startsWith("license", "cc-");
                 allBooksQuery.ascending("title");
                 allBooksQuery.skip(skip); // skip the ones we already got
                 // REVIEW: would this work? Would it speed things up?  allBooksQuery.limit(count);
@@ -902,7 +860,6 @@ Parse.Cloud.define("setupTables", function(request, response) {
     var aUser = null;
     var aBook = null;
     var anApp = null;
-    var aDetail = null;
     // If we're updating a 'live' table, typically we will have locked it down so
     // only with the master key can we add fields or classes.
     //Parse.Cloud.useMasterKey();
@@ -911,7 +868,6 @@ Parse.Cloud.define("setupTables", function(request, response) {
         var className = classes[ic].name;
         var parseClass = Parse.Object.extend(className);
         var instance = new parseClass();
-        var val = null;
         var fields = classes[ic].fields;
         for (var ifld = 0; ifld < fields.length; ifld++) {
             var fieldName = fields[ifld].name;
@@ -945,17 +901,14 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 case "Pointer<appSpecification>":
                     instance.set(fieldName, anApp);
                     break;
-                case "Relation<books>":
-                    // This and next could be generalized if we have other kinds of relation one day.
-                    var target = aBook;
-                    var relation = instance.relation(fieldName);
-                    relation.add(target);
-                    break;
-                case "Relation<appDetailsInLanguage>":
-                    var target = aDetail;
-                    var relation = instance.relation(fieldName);
-                    relation.add(target);
-                    break;
+
+                // It appears this is not used, so we're commenting it out for now. We're not sure if or how it was used previously.
+                // case "Relation<books>":
+                //     // This and next could be generalized if we have other kinds of relation one day.
+                //     var target = aBook;
+                //     var relation = instance.relation(fieldName);
+                //     relation.add(target);
+                //     break;
             }
         }
         instance.save(null, {
@@ -967,10 +920,6 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 // remember the appropriate instance for use in creating a sample.
                 if (classes[ic].name == "books") {
                     aBook = newObj;
-                } else if (classes[ic].name == "appSpecification") {
-                    anApp = newObj;
-                } else if (classes[ic].name == "appDetailsInLanguage") {
-                    aDetail = newObj;
                 }
                 ic++;
                 if (ic < classes.length) {
