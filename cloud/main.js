@@ -484,7 +484,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     var search = (book.get("title") || "").toLowerCase();
     var index;
     if (tagsIncoming) {
-        const tagsOutput = new []();
+        const tagsOutput = [];
         for (index = 0; index < tagsIncoming.length; ++index) {
             var tagName = tagsIncoming[index];
             var indexOfColon = tagName.indexOf(":");
