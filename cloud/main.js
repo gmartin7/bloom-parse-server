@@ -412,18 +412,40 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     // but that doesn't prevent the column from being added, either.
     // Unfortunately, that means we simply had to add authors to the schema. (BL-4001)
 
-    var tags = book.get("tags");
+    var tagsIncoming = book.get("tags");
     var search = (book.get("title") || "").toLowerCase();
     var index;
-    if (tags) {
-        for (index = 0; index < tags.length; ++index) {
-            var tagName = tags[index];
+    const tagsOutput = [];
+    if (tagsIncoming) {
+        for (index = 0; index < tagsIncoming.length; ++index) {
+            var tagName = tagsIncoming[index];
             var indexOfColon = tagName.indexOf(":");
             if (indexOfColon < 0) {
                 // From older versions of Bloom, topics come in without the "topic:" prefix
-                tags[index] = tagName = "topic:" + tagName;
+                tagName = "topic:" + tagName;
+
                 indexOfColon = "topic:".length - 1;
             }
+            // In Mar 2020 we moved bookshelf tags to their own column so that we could do
+            // regex on them without limiting what we could do with other tags
+            if (tagName.indexOf("bookshelf") === 0) {
+                // Note, we don't want to lose any bookshelves that we may have added by hand
+                // using the web ui. But means that if you hand-edit the meta.json to have one
+                // bookshelf, uploaded, realized a mistake, changed it and re-uploaded, well
+                // now you would have both bookshelves.
+                request.object.addUnique(
+                    "bookshelves",
+                    tagName.replace("bookshelf:", "")
+                );
+            }
+            /* TODO: Mar 2020: we are leaving bookshelf:foobar tags in for now so that we don't have to go into
+            the legacy angular code and adjust it to this new system. But once we retire that, we
+            should uncomment this else block so that the bookshelf tag is stripped, then run SaveAllBooks()
+            to remove it from all the records.
+             else {*/
+            tagsOutput.push(tagName);
+            /* } */
+
             // We only want to put the relevant information from the tag into the search string.
             // i.e. for region:Asia, we only want Asia. We also exclude system tags.
             // Our current search doesn't handle multi-string searching, anyway, so even if you knew
@@ -436,7 +458,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
             search = search + " " + tagNameForSearch.toLowerCase();
         }
     }
-    request.object.set("tags", tags);
+    request.object.set("tags", tagsOutput);
     request.object.set("search", search);
 
     var creator = request.user;
@@ -729,6 +751,10 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "bookLineage", type: "String" },
                 { name: "bookOrder", type: "String" },
                 { name: "bookletMakingIsAppropriate", type: "Boolean" },
+                // In Mar 2020 we moved the bookshelf: tag to this column. Currently incoming books still have
+                // the bookshelf: tag, and then beforeSave() takes them out of tags and pushes them in to this
+                // array.
+                { name: "bookshelves", type: "Array" },
                 { name: "copyright", type: "String" },
                 { name: "credits", type: "String" },
                 { name: "currentTool", type: "String" },
@@ -763,7 +789,20 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "province", type: "String" },
                 { name: "district", type: "String" },
                 { name: "features", type: "Array" },
+                // Name of the organization or entity that published this book.  It may be null if self-published.
                 { name: "publisher", type: "String" },
+                // When people make derivative works, that work is no longer "published" by the people who made
+                // the shell book. So "publisher" might become empty, or might get a new organization. But we still
+                // want to be able to acknowledge what org gave us this shellbook, and list it on their page
+                // (indicating that this is a derived book that they are not responsible for). So ideally new
+                // shellbooks that have a "publisher" also have that same value in "originalPublisher".
+                // "originalPublisher" will never be cleared by BloomDesktop.
+                { name: "originalPublisher", type: "String" },
+                // This is a "perceptual hash" (http://phash.org/) of the image in the first bloom-imageContainer
+                // we find on the first page after any xmatter pages. We use this to suggest which books are
+                // probably related to each other. This allows us to link, for example, books that are translations
+                // of each other.  (https://www.nuget.org/packages/Shipwreck.Phash/ is used to calculate the phash.)
+                { name: "phashOfFirstContentImage", type: "String" },
                 // Fields required by Harvester
                 { name: "harvestState", type: "String" },
                 { name: "harvesterId", type: "String" },
@@ -1025,7 +1064,6 @@ Parse.Cloud.define("setupTables", function(request, response) {
 // If there is a corresponding parse-server user with authData, the POST to users
 // will log them in.
 Parse.Cloud.define("bloomLink", async function(request, response) {
-
     let user;
     try {
         var id = request.params.id;
@@ -1058,7 +1096,7 @@ Parse.Cloud.define("bloomLink", async function(request, response) {
     //     "bloomLink authdata from user: " + JSON.stringify(user.authData)
     // );
 
-    if (!user.get('authData')) {
+    if (!user.get("authData")) {
         // console.log(
         //     "bloomLink setting user authdata to " + JSON.stringify(authData)
         // );
