@@ -366,40 +366,54 @@ Parse.Cloud.define("populateCounts", function(request, response) {
 
 // Makes new and updated books have the right search string and ACL.
 Parse.Cloud.beforeSave("books", function(request, response) {
-    var book = request.object;
+    const book = request.object;
 
     console.log("entering bloom-parse-server main.js beforeSave books");
 
     // The original purpose of the updateSource field was so we could set system:Incoming on every book
     // when it is uploaded or reuploaded from BloomDesktop without doing so for changes from the datagrid.
     //
-    // A beforeSave event for book could occur from at least one of these sources:
-    // * BloomDesktop upload or reupload
-    // * Bloomlibrary.org datagrid
-    // * Bloom harvester
-    // * parse dashboard
+    // Now, we also use it to set harvestState to "New" or "Updated" depending on if the book record is new.
     //
-    // BloomDesktop does not set updateSource -- old Blooms weren't/aren't setting it, so adding it now doesn't help much
-    // Bloomlibrary.org datagrid sets updateSource to datagrid or datagrid (admin)
-    // Bloom harvester sets it to bloomHarvester
-    // parse dashboard also does not set it -- which was an oversight in the design but also has no obvious solution
-    //
-    // Now, we also want to set the harvestState field to "New" or "Updated" when a book is uploaded or reuploaded.
-    // So, if there is no updateSource, and the book doesn't exist, set to "New".
-    // If there is no updateSource, and the book does exist, set to "Updated".
-    // Unfortunately, this will also happen when changes are made to rows directly through the parse dashboard.
-    var updateSource = request.object.get("updateSource");
-    if (!updateSource) {
-        // Assume (see caveat above) change came from BloomDesktop upload (or reupload)
-        book.addUnique("tags", "system:Incoming");
-        if (request.object.isNew()) {
-            request.object.set("harvestState", "New");
-        } else {
-            request.object.set("harvestState", "Updated");
+    // We also set lastUploaded for old (pre-4.7) BloomDesktops which don't set it themselves.
+    let newUpdateSource = book.get("updateSource");
+    // Apparently, "dirty" just means we provided it, regardless of whether or not it changed.
+    // Careful not to use book.dirty("updateSource") which seems to always be true.
+    if (!book.dirtyKeys().includes("updateSource")) {
+        // For old BloomDesktops which didn't set the updateSource, we use this hack
+        if (
+            request.headers["user-agent"] &&
+            request.headers["user-agent"].startsWith("RestSharp")
+        ) {
+            newUpdateSource = "BloomDesktop old";
+            book.set("lastUploaded", {
+                __type: "Date",
+                iso: new Date().toISOString()
+            });
         }
-    } else {
-        // We never want to leave the value set in the database or our logic (described above) won't work
-        request.object.unset("updateSource");
+        // direct change on the dashboard (either using "Browser" view or "API Console")
+        else if (
+            request.headers.referer &&
+            request.headers.referer.indexOf("dashboard/apps/BloomLibrary.org") >
+                -1
+        ) {
+            newUpdateSource = "parse dashboard";
+        }
+        // someone forgot to set updateSource
+        else {
+            newUpdateSource = "unknown";
+        }
+        book.set("updateSource", newUpdateSource);
+    }
+    // As of April 2020, BloomDesktop 4.7 now sets the updateSource to "BloomDesktop {version}".
+    if (newUpdateSource.startsWith("BloomDesktop")) {
+        // Change came from BloomDesktop upload (or reupload)
+        book.addUnique("tags", "system:Incoming");
+        if (book.isNew()) {
+            book.set("harvestState", "New");
+        } else {
+            book.set("harvestState", "Updated");
+        }
     }
 
     // Bloom 3.6 and earlier set the authors field, but apparently, because it
