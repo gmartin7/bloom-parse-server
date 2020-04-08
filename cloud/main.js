@@ -4,7 +4,7 @@ require("./emails.js"); // allows email-specific could functions to be defined
 // This function will call save on every book. This is useful for
 // applying the functionality in beforeSaveBook to every book,
 // particularly updating the tags and search fields.
-Parse.Cloud.job("saveAllBooks", function(request) {
+Parse.Cloud.job("saveAllBooks", function(request, res) {
     request.log.info("saveAllBooks - Starting.");
     // Query for all books
     var query = new Parse.Query("books");
@@ -21,12 +21,14 @@ Parse.Cloud.job("saveAllBooks", function(request) {
         .then(
             function() {
                 request.log.info("saveAllBooks - Completed successfully.");
+                res.success();
             },
             function(error) {
                 // Set the job's error status
                 request.log.error(
                     "saveAllBooks - Terminated with error: " + error
                 );
+                res.error(error);
             }
         );
 });
@@ -37,7 +39,7 @@ Parse.Cloud.job("saveAllBooks", function(request) {
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert master key>" -d '{}' https://bloom-parse-server-develop.azurewebsites.net/parse/jobs/removeUnusedLanguages
 // (In theory, the -d '{}' shouldn't be needed because we are not passing any parameters, but it doesn't work without it.)
-Parse.Cloud.job("removeUnusedLanguages", function(request) {
+Parse.Cloud.job("removeUnusedLanguages", function(request, res) {
     request.log.info("removeUnusedLanguages - Starting.");
 
     var allLangQuery = new Parse.Query("language");
@@ -83,9 +85,11 @@ Parse.Cloud.job("removeUnusedLanguages", function(request) {
                 request.log.info(
                     "removeUnusedLanguages - Completed successfully."
                 );
+                res.success();
             },
             function(error) {
                 request.log.error("removeUnusedLanguages - Terminated unsuccessfully with error: " + error);
+                res.error(error);
             }
         );
 });
@@ -94,7 +98,7 @@ Parse.Cloud.job("removeUnusedLanguages", function(request) {
 // This is scheduled on Azure under bloom-library-maintenance.
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://bloom-parse-server-develop.azurewebsites.net/parse/jobs/populateCounts
-Parse.Cloud.job("populateCounts", (request) => {
+Parse.Cloud.job("populateCounts", (request, res) => {
     request.log.info("populateCounts - Starting.");
 
     var counters = { language: {}, tag: {} };
@@ -283,12 +287,14 @@ Parse.Cloud.job("populateCounts", (request) => {
         .then(
             function() {
                 request.log.info("populateCounts - Completed successfully.");
+                res.success();
             },
             function(error) {
                 request.log.error(
                     "populateCounts - Terminated unsuccessfully with error: " +
                         error
                 );
+                res.error(error);
             }
         );
 });
