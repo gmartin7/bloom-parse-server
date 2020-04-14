@@ -9,15 +9,15 @@
   },
   "license": "MIT",
   "dependencies": {
-    "express": "~4.11.x",
+    "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",
-    "kerberos": "~0.0.x",
-    "node-rsa": "^1.0.7",
-    "parse": "~1.8.0",
+    "kerberos": "^0.0.24",
+    "node-rsa": "^1.0.8",
+    "parse": "^1.11.1",
     "parse-dashboard": "^2.0.5",
-    "parse-server": "~2.8.4",
+    "parse-server": "^2.8.4",
     "parse-server-sendgrid-adapter": "^1.0.0",
-    "sendgrid": "^4.7.1"
+    "sendgrid": "^4.10.0"
   },
   "scripts": {
     "start": "node index.js"
