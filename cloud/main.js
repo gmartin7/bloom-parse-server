@@ -8,6 +8,7 @@ Parse.Cloud.job("saveAllBooks", function(request, res) {
     request.log.info("saveAllBooks - Starting.");
     // Query for all books
     var query = new Parse.Query("books");
+    query.select("objectId");
     query
         .each(function(book) {
             book.set("updateSource", "saveAllBooks"); // very important so we don't add system:incoming tag
@@ -115,6 +116,7 @@ Parse.Cloud.job("populateCounts", (request, res) => {
             var bookQuery = new Parse.Query("books");
             bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
             bookQuery.containedIn("inCirculation", [true, undefined]);
+            bookQuery.select("tags","langPointers");
 
             //Analyze a book's tags and languages and increment proper counts
             function incrementBookUsageCounts(books, index) {
