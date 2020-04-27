@@ -103,115 +103,40 @@ Parse.Cloud.job("removeUnusedLanguages", function (request, res) {
         );
 });
 
-// A background job to populate usageCounts for languages and tags
+// A background job to populate usageCounts for languages
+// (tags processing was removed 4/2020 because we don't use the info)
+//
 // This is scheduled on Azure under bloom-library-maintenance.
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://bloom-parse-server-develop.azurewebsites.net/parse/jobs/populateCounts
 Parse.Cloud.job("populateCounts", (request, res) => {
     request.log.info("populateCounts - Starting.");
 
-    var counters = { language: {}, tag: {} };
+    var langCounts = {};
 
-    //Query each tag
-    var tagQuery = new Parse.Query("tag");
-    tagQuery
-        .each(function (tag) {
-            //Initial tag counters are 0
-            counters.tag[tag.get("name")] = 0;
-        })
-        .then(function () {
-            //Create a book query
-            var bookQuery = new Parse.Query("books");
-            bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
-            bookQuery.containedIn("inCirculation", [true, undefined]);
-            bookQuery.select("tags", "langPointers");
-
-            //Analyze a book's tags and languages and increment proper counts
-            function incrementBookUsageCounts(books, index) {
-                //If we finished all the books, return resolved promise
-                if (index >= books.length) {
-                    request.log.info(
-                        "populateCounts - Processed " + books.length + " books."
-                    );
-                    return Parse.Promise.as();
-                }
-
-                var book = books[index];
-
-                //Increment book's languages' counts
-                //Since we shouldn't worry about invalid languages,
-                //this process needs no requests to the server and may be iterative
+    //Make and execute book query
+    var bookQuery = new Parse.Query("books");
+    bookQuery.limit(1000000); // Default is 100. We want all of them.
+    bookQuery.containedIn("inCirculation", [true, undefined]);
+    bookQuery.select("langPointers");
+    bookQuery
+        .find()
+        .then((books) => {
+            books.forEach((book) => {
+                //Spin through each book's languages and increment usage count
                 var langPtrs = book.get("langPointers");
                 if (langPtrs) {
-                    for (var i = 0; i < langPtrs.length; i++) {
-                        var onePtr = langPtrs[i];
-                        var id = onePtr.id;
-                        if (!(id in counters.language)) {
-                            counters.language[id] = 0;
+                    langPtrs.forEach((langPtr) => {
+                        var id = langPtr.id;
+                        if (!(id in langCounts)) {
+                            langCounts[id] = 0;
                         }
-                        counters.language[id]++;
-                    }
-                }
-
-                var tags = book.get("tags");
-                if (tags) {
-                    //Recursively increment book's tags' counts
-                    return incrementTagUsageCount(tags, 0).then(function () {
-                        //Next book
-                        return incrementBookUsageCounts(books, index + 1);
+                        langCounts[id]++;
                     });
                 }
-
-                //Next book (when no tags)
-                return incrementBookUsageCounts(books, index + 1);
-            }
-
-            //Increment a given tag's count
-            function incrementTagUsageCount(tags, index) {
-                if (index >= tags.length) {
-                    //Base case
-                    //Resolved promise
-                    return Parse.Promise.as();
-                }
-
-                var tagName = tags[index];
-                if (tagName.indexOf(":") < 0) {
-                    // In previous versions of Bloom, topics came in without the "topic:" prefix
-                    tagName = "topic:" + tagName;
-                }
-                if (tagName in counters.tag) {
-                    counters.tag[tagName]++;
-                    //Next tag
-                    return incrementTagUsageCount(tags, index + 1);
-                } else {
-                    //If tag is not one already in the database, add the tag to the database
-                    counters.tag[tagName] = 1;
-                    var parseClass = Parse.Object.extend("tag");
-                    var newTag = new parseClass();
-                    newTag.set("name", tagName);
-                    return newTag.save(null, { useMasterKey: true }).then(
-                        function () {
-                            request.log.info(
-                                "populateCounts - Created tag " + tagName
-                            );
-                            //Next tag
-                            return incrementTagUsageCount(tags, index + 1);
-                        },
-                        function (error) {
-                            request.log.error(
-                                `populateCounts - Creation failed for new tag (${tagName}): ` +
-                                    error
-                            );
-                        }
-                    );
-                }
-            }
-
-            //Make query, then initialize recursive book analysis; return promise for next then in promise chain
-            return bookQuery.find().then(function (results) {
-                return incrementBookUsageCounts(results, 0);
             });
         })
+        // Now update the language table records with the correct usage count
         .then(function () {
             function setLangUsageCount(data, index) {
                 //When done, return resolved promise
@@ -224,7 +149,7 @@ Parse.Cloud.job("populateCounts", (request, res) => {
 
                 var language = data[index];
                 var languageId = language.id;
-                language.set("usageCount", counters.language[languageId] || 0);
+                language.set("usageCount", langCounts[languageId] || 0);
                 return language.save(null, { useMasterKey: true }).then(
                     function () {
                         //Next language
@@ -242,69 +167,12 @@ Parse.Cloud.job("populateCounts", (request, res) => {
             }
 
             var langQuery = new Parse.Query("language");
-            langQuery.limit(100000); // default is 100, supposedly. We want all of them.
+            langQuery.limit(1000000); // Default is 100. We want all of them.
 
             //Cycle through languages, assigning usage counts
-            return langQuery.find().then(function (results) {
+            return langQuery.find().then((results) => {
                 //Start recursion
                 return setLangUsageCount(results, 0);
-            });
-        })
-        .then(function () {
-            function setTagUsageCount(data, index) {
-                //Return resolved promise when done
-                if (index >= data.length) {
-                    request.log.info(
-                        `populateCounts - Processed ${data.length} tags.`
-                    );
-                    return Parse.Promise.as();
-                }
-
-                var tag = data[index];
-                var tagName = tag.get("name");
-                var count = counters.tag[tagName];
-                if (count > 0) {
-                    tag.set("usageCount", count);
-                    return tag.save(null, { useMasterKey: true }).then(
-                        function () {
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        },
-                        function (error) {
-                            request.log.error(
-                                `tag ${tagName} save failed: ${error}`
-                            );
-
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        }
-                    );
-                } else {
-                    //Destroy tag with count of 0
-                    return tag.destroy({ useMasterKey: true }).then(
-                        function () {
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        },
-                        function (error) {
-                            request.log.error(
-                                `tag ${tagName} destroy failed: ${error}`
-                            );
-
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        }
-                    );
-                }
-            }
-
-            var tagQuery2 = new Parse.Query("tag");
-            tagQuery2.limit(100000); // default is 100, supposedly. We want all of them.
-
-            //Cycle through tags in database
-            return tagQuery2.find().then(function (results) {
-                //Begin recursion
-                return setTagUsageCount(results, 0);
             });
         })
         .then(
