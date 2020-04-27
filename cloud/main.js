@@ -4,27 +4,29 @@ require("./emails.js"); // allows email-specific could functions to be defined
 // This function will call save on every book. This is useful for
 // applying the functionality in beforeSaveBook to every book,
 // particularly updating the tags and search fields.
-Parse.Cloud.job("saveAllBooks", function(request, res) {
+Parse.Cloud.job("saveAllBooks", function (request, res) {
     request.log.info("saveAllBooks - Starting.");
     // Query for all books
     var query = new Parse.Query("books");
     query.select("objectId");
     query
-        .each(function(book) {
+        .each(function (book) {
             book.set("updateSource", "saveAllBooks"); // very important so we don't add system:incoming tag
             return book.save(null, { useMasterKey: true }).then(
-                function() {},
-                function(error) {
-                    request.log.error("saveAllBooks - book.save failed: " + error);
+                function () {},
+                function (error) {
+                    request.log.error(
+                        "saveAllBooks - book.save failed: " + error
+                    );
                 }
             );
         })
         .then(
-            function() {
+            function () {
                 request.log.info("saveAllBooks - Completed successfully.");
                 res.success();
             },
-            function(error) {
+            function (error) {
                 // Set the job's error status
                 request.log.error(
                     "saveAllBooks - Terminated with error: " + error
@@ -40,23 +42,23 @@ Parse.Cloud.job("saveAllBooks", function(request, res) {
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert master key>" -d '{}' https://bloom-parse-server-develop.azurewebsites.net/parse/jobs/removeUnusedLanguages
 // (In theory, the -d '{}' shouldn't be needed because we are not passing any parameters, but it doesn't work without it.)
-Parse.Cloud.job("removeUnusedLanguages", function(request, res) {
+Parse.Cloud.job("removeUnusedLanguages", function (request, res) {
     request.log.info("removeUnusedLanguages - Starting.");
 
     var allLangQuery = new Parse.Query("language");
     allLangQuery.limit(1000000); // default is 100, supposedly. We want all of them.
     allLangQuery
         .find()
-        .then(function(languages) {
+        .then(function (languages) {
             var promise = Parse.Promise.as();
             for (var i = 0; i < languages.length; i++) {
                 // Use IIFE to pass the correct language down
-                (function() {
+                (function () {
                     var lang = languages[i];
                     var bookQuery = new Parse.Query("books");
                     bookQuery.equalTo("langPointers", lang);
-                    promise = promise.then(function() {
-                        return bookQuery.count().then(function(count) {
+                    promise = promise.then(function () {
+                        return bookQuery.count().then(function (count) {
                             if (count === 0) {
                                 request.log.info(
                                     "removeUnusedLanguages - Deleting language " +
@@ -65,14 +67,17 @@ Parse.Cloud.job("removeUnusedLanguages", function(request, res) {
                                 );
                                 return lang.destroy({
                                     useMasterKey: true,
-                                    success: function() {
-                                        request.log.info("removeUnusedLanguages - Deletion successful.");
-                                    },
-                                    error: function(error) {
-                                        request.log.error(
-                                            "removeUnusedLanguages - Deletion failed: " + error
+                                    success: function () {
+                                        request.log.info(
+                                            "removeUnusedLanguages - Deletion successful."
                                         );
-                                    }
+                                    },
+                                    error: function (error) {
+                                        request.log.error(
+                                            "removeUnusedLanguages - Deletion failed: " +
+                                                error
+                                        );
+                                    },
                                 });
                             }
                         });
@@ -82,139 +87,78 @@ Parse.Cloud.job("removeUnusedLanguages", function(request, res) {
             return promise;
         })
         .then(
-            function() {
+            function () {
                 request.log.info(
                     "removeUnusedLanguages - Completed successfully."
                 );
                 res.success();
             },
-            function(error) {
-                request.log.error("removeUnusedLanguages - Terminated unsuccessfully with error: " + error);
+            function (error) {
+                request.log.error(
+                    "removeUnusedLanguages - Terminated unsuccessfully with error: " +
+                        error
+                );
                 res.error(error);
             }
         );
 });
 
-// A background job to populate usageCounts for languages and tags
+// A background job to populate usageCounts for languages
+// (tags processing was removed 4/2020 because we don't use the info)
+//
 // This is scheduled on Azure under bloom-library-maintenance.
 // You can also run it manually via REST:
 // curl -X POST -H "X-Parse-Application-Id: <insert app ID>" -H "X-Parse-Master-Key: <insert Master key>" -d "{}" https://bloom-parse-server-develop.azurewebsites.net/parse/jobs/populateCounts
 Parse.Cloud.job("populateCounts", (request, res) => {
     request.log.info("populateCounts - Starting.");
 
-    var counters = { language: {}, tag: {} };
+    var langCounts = {};
 
-    //Query each tag
-    var tagQuery = new Parse.Query("tag");
-    tagQuery
-        .each(function(tag) {
-            //Initial tag counters are 0
-            counters.tag[tag.get("name")] = 0;
-        })
-        .then(function() {
-            //Create a book query
-            var bookQuery = new Parse.Query("books");
-            bookQuery.limit(1000000); // default is 100, supposedly. We want all of them.
-            bookQuery.containedIn("inCirculation", [true, undefined]);
-            bookQuery.select("tags","langPointers");
-
-            //Analyze a book's tags and languages and increment proper counts
-            function incrementBookUsageCounts(books, index) {
-                //If we finished all the books, return resolved promise
-                if (index >= books.length) {
-                    request.log.info("populateCounts - Processed " + books.length + " books.");
-                    return Parse.Promise.as();
-                }
-
-                var book = books[index];
-
-                //Increment book's languages' counts
-                //Since we shouldn't worry about invalid languages,
-                //this process needs no requests to the server and may be iterative
+    //Make and execute book query
+    var bookQuery = new Parse.Query("books");
+    bookQuery.limit(1000000); // Default is 100. We want all of them.
+    bookQuery.containedIn("inCirculation", [true, undefined]);
+    bookQuery.select("langPointers");
+    bookQuery
+        .find()
+        .then((books) => {
+            books.forEach((book) => {
+                //Spin through each book's languages and increment usage count
                 var langPtrs = book.get("langPointers");
                 if (langPtrs) {
-                    for (var i = 0; i < langPtrs.length; i++) {
-                        var onePtr = langPtrs[i];
-                        var id = onePtr.id;
-                        if (!(id in counters.language)) {
-                            counters.language[id] = 0;
+                    langPtrs.forEach((langPtr) => {
+                        var id = langPtr.id;
+                        if (!(id in langCounts)) {
+                            langCounts[id] = 0;
                         }
-                        counters.language[id]++;
-                    }
-                }
-
-                var tags = book.get("tags");
-                if (tags) {
-                    //Recursively increment book's tags' counts
-                    return incrementTagUsageCount(tags, 0).then(function() {
-                        //Next book
-                        return incrementBookUsageCounts(books, index + 1);
+                        langCounts[id]++;
                     });
                 }
-
-                //Next book (when no tags)
-                return incrementBookUsageCounts(books, index + 1);
-            }
-
-            //Increment a given tag's count
-            function incrementTagUsageCount(tags, index) {
-                if (index >= tags.length) {
-                    //Base case
-                    //Resolved promise
-                    return Parse.Promise.as();
-                }
-
-                var tagName = tags[index];
-                if (tagName.indexOf(":") < 0) {
-                    // In previous versions of Bloom, topics came in without the "topic:" prefix
-                    tagName = "topic:" + tagName;
-                }
-                if (tagName in counters.tag) {
-                    counters.tag[tagName]++;
-                    //Next tag
-                    return incrementTagUsageCount(tags, index + 1);
-                } else {
-                    //If tag is not one already in the database, add the tag to the database
-                    counters.tag[tagName] = 1;
-                    var parseClass = Parse.Object.extend("tag");
-                    var newTag = new parseClass();
-                    newTag.set("name", tagName);
-                    return newTag.save(null, { useMasterKey: true }).then(
-                        function() {
-                            request.log.info("populateCounts - Created tag " + tagName);
-                            //Next tag
-                            return incrementTagUsageCount(tags, index + 1);
-                        },
-                        function(error) {
-                            request.log.error(`populateCounts - Creation failed for new tag (${tagName}): ` + error);
-                        }
-                    );
-                }
-            }
-
-            //Make query, then initialize recursive book analysis; return promise for next then in promise chain
-            return bookQuery.find().then(function(results) {
-                return incrementBookUsageCounts(results, 0);
             });
         })
-        .then(function() {
+        // Now update the language table records with the correct usage count
+        .then(function () {
             function setLangUsageCount(data, index) {
                 //When done, return resolved promise
                 if (index >= data.length) {
-                    request.log.info(`populateCounts - Processed ${data.length} languages.`);
+                    request.log.info(
+                        `populateCounts - Processed ${data.length} languages.`
+                    );
                     return Parse.Promise.as();
                 }
 
                 var language = data[index];
                 var languageId = language.id;
-                language.set("usageCount", counters.language[languageId] || 0);
+                language.set("usageCount", langCounts[languageId] || 0);
                 return language.save(null, { useMasterKey: true }).then(
-                    function() {
+                    function () {
                         //Next language
                         return setLangUsageCount(data, index + 1);
                     },
-                    function(error) {
-                        request.log.error(`language ${languageId} save failed: ${error}`);
+                    function (error) {
+                        request.log.error(
+                            `language ${languageId} save failed: ${error}`
+                        );
 
                         //Next language
                         return setLangUsageCount(data, index + 1);
@@ -223,75 +167,20 @@ Parse.Cloud.job("populateCounts", (request, res) => {
             }
 
             var langQuery = new Parse.Query("language");
-            langQuery.limit(100000); // default is 100, supposedly. We want all of them.
+            langQuery.limit(1000000); // Default is 100. We want all of them.
 
             //Cycle through languages, assigning usage counts
-            return langQuery.find().then(function(results) {
+            return langQuery.find().then((results) => {
                 //Start recursion
                 return setLangUsageCount(results, 0);
             });
         })
-        .then(function() {
-            function setTagUsageCount(data, index) {
-                //Return resolved promise when done
-                if (index >= data.length) {
-                    request.log.info(`populateCounts - Processed ${data.length} tags.`);
-                    return Parse.Promise.as();
-                }
-
-                var tag = data[index];
-                var tagName = tag.get("name");
-                var count = counters.tag[tagName];
-                if (count > 0) {
-                    tag.set("usageCount", count);
-                    return tag.save(null, { useMasterKey: true }).then(
-                        function() {
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        },
-                        function(error) {
-                            request.log.error(
-                                `tag ${tagName} save failed: ${error}`
-                            );
-
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        }
-                    );
-                } else {
-                    //Destroy tag with count of 0
-                    return tag.destroy({ useMasterKey: true }).then(
-                        function() {
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        },
-                        function(error) {
-                            request.log.error(
-                                `tag ${tagName} destroy failed: ${error}`
-                            );
-
-                            // Next tag
-                            return setTagUsageCount(data, index + 1);
-                        }
-                    );
-                }
-            }
-
-            var tagQuery2 = new Parse.Query("tag");
-            tagQuery2.limit(100000); // default is 100, supposedly. We want all of them.
-
-            //Cycle through tags in database
-            return tagQuery2.find().then(function(results) {
-                //Begin recursion
-                return setTagUsageCount(results, 0);
-            });
-        })
         .then(
-            function() {
+            function () {
                 request.log.info("populateCounts - Completed successfully.");
                 res.success();
             },
-            function(error) {
+            function (error) {
                 request.log.error(
                     "populateCounts - Terminated unsuccessfully with error: " +
                         error
@@ -302,7 +191,7 @@ Parse.Cloud.job("populateCounts", (request, res) => {
 });
 
 // Makes new and updated books have the right search string and ACL.
-Parse.Cloud.beforeSave("books", function(request, response) {
+Parse.Cloud.beforeSave("books", function (request, response) {
     const book = request.object;
 
     console.log("entering bloom-parse-server main.js beforeSave books");
@@ -325,7 +214,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
             newUpdateSource = "BloomDesktop old";
             book.set("lastUploaded", {
                 __type: "Date",
-                iso: new Date().toISOString()
+                iso: new Date().toISOString(),
             });
         }
         // direct change on the dashboard (either using "Browser" view or "API Console")
@@ -427,7 +316,7 @@ Parse.Cloud.beforeSave("books", function(request, response) {
     response.success();
 });
 
-Parse.Cloud.afterSave("books", function(request) {
+Parse.Cloud.afterSave("books", function (request) {
     // We no longer wish to automatically create bookshelves.
     // It is too easy for a user (or even us mistakenly) to create them.
     // const bookshelfPrefix = "bookshelf:";
@@ -494,10 +383,10 @@ Parse.Cloud.afterSave("books", function(request) {
             var emailer = require("./emails.js");
             emailer
                 .sendBookSavedEmailAsync(book)
-                .then(function() {
+                .then(function () {
                     console.log("xBook saved email notice sent successfully.");
                 })
-                .catch(function(error) {
+                .catch(function (error) {
                     console.log(
                         "ERROR: 'Book saved but sending notice email failed: " +
                             error
@@ -511,7 +400,7 @@ Parse.Cloud.afterSave("books", function(request) {
     }
 });
 
-Parse.Cloud.afterSave("downloadHistory", function(request) {
+Parse.Cloud.afterSave("downloadHistory", function (request) {
     //Parse.Cloud.useMasterKey();
     console.log(
         "entering bloom-parse-server main.js afterSave downloadHistory"
@@ -523,21 +412,21 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
     var query = new Parse.Query(booksClass);
 
     query.get(bookId, {
-        success: function(book) {
+        success: function (book) {
             var currentDownloadCount = book.get("downloadCount") || 0;
             book.set("downloadCount", currentDownloadCount + 1);
             book.set("updateSource", "incrementDownloadCount"); // very important so we don't add system:incoming tag
             book.save(null, { useMasterKey: true }).then(
-                function() {},
-                function(error) {
+                function () {},
+                function (error) {
                     console.error("book.save failed: " + error);
                     throw "book.save failed: " + error;
                 }
             );
         },
-        error: function(object, error) {
+        error: function (object, error) {
             console.log("get error: " + error);
-        }
+        },
     });
 });
 
@@ -545,7 +434,7 @@ Parse.Cloud.afterSave("downloadHistory", function(request) {
 // Return the books that should be shown in the default browse view.
 // Currently this is those in the Featured bookshelf, followed by all the others.
 // Each group is sorted alphabetically by title.
-Parse.Cloud.define("defaultBooks", function(request, response) {
+Parse.Cloud.define("defaultBooks", function (request, response) {
     console.log("bloom-parse-server main.js define defaultBooks function");
     var first = request.params.first;
     var count = request.params.count;
@@ -556,7 +445,7 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
     // licensed. This is currently (Mar 2020) just 1% of our books, and also
     // now we have a "use" for even closed-licensed books (reading on the web)
     // so we might not do this in the new (react) blorg.
-    const restrictByLicense = query => {
+    const restrictByLicense = (query) => {
         var public = new Parse.Query("books");
         public.startsWith("license", "cc"); // Not cc- so we include cc0
 
@@ -583,7 +472,7 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
     featuredBooksQuery.ascending("title");
     featuredBooksQuery.limit(1000000); // default is 100, supposedly. We want all of them.
     featuredBooksQuery.find({
-        success: function(shelfBooks) {
+        success: function (shelfBooks) {
             var results = [];
             var shelfIds = Object.create(null); // create an object with no properties to be a set
             var resultIndex = 0;
@@ -597,12 +486,12 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
             var skip = 0;
             // This function implements a query loop by calling itself inside each
             // promise fulfilment if more results are needed.
-            var runQuery = function() {
+            var runQuery = function () {
                 let allBooksQuery = new Parse.Query("books");
                 if (!includeOutOfCirculation)
                     allBooksQuery.containedIn("inCirculation", [
                         true,
-                        undefined
+                        undefined,
                     ]);
 
                 if (!allLicenses) {
@@ -617,7 +506,7 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
                 // copying "count" books into the results.
 
                 allBooksQuery.find({
-                    success: function(allBooks) {
+                    success: function (allBooks) {
                         skip += allBooks.length; // skip these ones next iteration
                         for (
                             var i = 0;
@@ -641,16 +530,16 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
                         }
                         runQuery(); // launch another iteration.
                     },
-                    error: function() {
+                    error: function () {
                         response.error("failed to find all books");
-                    }
+                    },
                 });
             };
             runQuery(); // start the recursive loop.
         },
-        error: function() {
+        error: function () {
             response.error("failed to find books of featured shelf");
-        }
+        },
     });
 });
 
@@ -675,7 +564,7 @@ Parse.Cloud.define("defaultBooks", function(request, response) {
 //
 // NOTE: There is reason to believe that using this function to add columns of type Object does not work
 // and that they must be added manually (in the dashboard) instead.
-Parse.Cloud.define("setupTables", function(request, response) {
+Parse.Cloud.define("setupTables", function (request, response) {
     // Required BloomLibrary classes/fields
     // Note: code below currently requires that 'books' is first.
     // Current code supports only String, Boolean, Number, Date, Array, Pointer<_User/Book/appDetailsInLanguage>,
@@ -689,7 +578,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
     var classes = [
         {
             name: "version",
-            fields: [{ name: "minDesktopVersion", type: "String" }]
+            fields: [{ name: "minDesktopVersion", type: "String" }],
         },
         {
             name: "books",
@@ -731,6 +620,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "tags", type: "Array" },
                 { name: "thumbnail", type: "String" },
                 { name: "title", type: "String" },
+                { name: "originalTitle", type: "String" },
                 { name: "tools", type: "Array" },
                 { name: "updateSource", type: "String" },
                 { name: "uploader", type: "Pointer<_User>" },
@@ -767,9 +657,9 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 // Fields required by RoseGarden
                 { name: "importerName", type: "String" },
                 { name: "importerMajorVersion", type: "Number" },
-                { name: "importerMinorVersion", type: "Number" }
+                { name: "importerMinorVersion", type: "Number" },
                 // End fields required by RoseGarden
-            ]
+            ],
         },
         {
             name: "bookshelf",
@@ -779,15 +669,15 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "logoUrl", type: "String" },
                 { name: "normallyVisible", type: "Boolean" },
                 { name: "owner", type: "Pointer<_User>" },
-                { name: "category", type: "String" }
-            ]
+                { name: "category", type: "String" },
+            ],
         },
         {
             name: "downloadHistory",
             fields: [
                 { name: "bookId", type: "String" },
-                { name: "userIp", type: "String" }
-            ]
+                { name: "userIp", type: "String" },
+            ],
         },
         {
             name: "language",
@@ -797,20 +687,20 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "name", type: "String" },
                 { name: "englishName", type: "String" },
                 //Usage count determined daily per Parse.com job
-                { name: "usageCount", type: "Number" }
-            ]
+                { name: "usageCount", type: "Number" },
+            ],
         },
         {
             name: "tag",
             fields: [
                 { name: "name", type: "String" },
                 //Usage count determined daily per Parse.com job
-                { name: "usageCount", type: "Number" }
-            ]
+                { name: "usageCount", type: "Number" },
+            ],
         },
         {
             name: "relatedBooks",
-            fields: [{ name: "books", type: "Array" }]
+            fields: [{ name: "books", type: "Array" }],
         },
         {
             name: "appDetailsInLanguage",
@@ -818,8 +708,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "androidStoreLanguageIso", type: "String" },
                 { name: "title", type: "String" },
                 { name: "shortDescription", type: "String" },
-                { name: "fullDescription", type: "String" }
-            ]
+                { name: "fullDescription", type: "String" },
+            ],
         },
         {
             name: "appSpecification",
@@ -832,8 +722,8 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 { name: "featureGraphic1024x500", type: "String" },
                 { name: "details", type: "Relation<appDetailsInLanguage>" },
                 { name: "owner", type: "Pointer<_User>" },
-                { name: "packageName", type: "String" }
-            ]
+                { name: "packageName", type: "String" },
+            ],
         },
         {
             // must come after the classes it references
@@ -841,9 +731,9 @@ Parse.Cloud.define("setupTables", function(request, response) {
             fields: [
                 { name: "app", type: "Pointer<appSpecification>" },
                 { name: "book", type: "Pointer<books>" },
-                { name: "index", type: "Integer" }
-            ]
-        }
+                { name: "index", type: "Integer" },
+            ],
+        },
     ];
 
     var ic = 0;
@@ -854,7 +744,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
     // only with the master key can we add fields or classes.
     //Parse.Cloud.useMasterKey();
 
-    var doOne = function() {
+    var doOne = function () {
         var className = classes[ic].name;
         var parseClass = Parse.Object.extend(className);
         var instance = new parseClass();
@@ -869,7 +759,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 case "Date":
                     instance.set(fieldName, {
                         __type: "Date",
-                        iso: "2015-02-15T00:00:00.000Z"
+                        iso: "2015-02-15T00:00:00.000Z",
                     });
                     break;
                 case "Boolean":
@@ -903,7 +793,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
         }
         instance.save(null, {
             useMasterKey: true,
-            success: function(newObj) {
+            success: function (newObj) {
                 // remember the new object so we can destroy it later, or use it as a relation target.
                 classes[ic].parseObject = newObj;
                 // if the class is one of the ones we reference in pointers or relations,
@@ -920,18 +810,18 @@ Parse.Cloud.define("setupTables", function(request, response) {
                     deleteOne();
                 }
             },
-            error: function(error) {
+            error: function (error) {
                 console.log("instance.save failed: " + error);
                 response.error("instance.save failed: " + error);
-            }
+            },
         });
     };
-    var deleteOne = function() {
+    var deleteOne = function () {
         // Now we're done, the class and fields must exist; we don't actually want the instances
         var newObj = classes[ic].parseObject;
         newObj.destroy({
             useMasterKey: true,
-            success: function() {
+            success: function () {
                 ic++;
                 if (ic < classes.length) {
                     deleteOne(); // recursive loop
@@ -939,17 +829,17 @@ Parse.Cloud.define("setupTables", function(request, response) {
                     cleanup();
                 }
             },
-            error: function(error) {
+            error: function (error) {
                 response.error(error);
-            }
+            },
         });
     };
-    var cleanup = function() {
+    var cleanup = function () {
         // We've done the main job...now some details.
         var versionType = Parse.Object.extend("version");
         var query = new Parse.Query("version");
         query.find({
-            success: function(results) {
+            success: function (results) {
                 var version;
                 if (results.length >= 1) {
                     // updating an existing project, already has version table and instance
@@ -960,29 +850,29 @@ Parse.Cloud.define("setupTables", function(request, response) {
                 version.set("minDesktopVersion", "2.0");
                 version.save(null, {
                     useMasterKey: true,
-                    success: function() {
+                    success: function () {
                         // Finally destroy the spurious user we made.
                         aUser.destroy({
                             useMasterKey: true,
-                            success: function() {
+                            success: function () {
                                 response.success(
                                     "setupTables ran to completion."
                                 );
                             },
-                            error: function(error) {
+                            error: function (error) {
                                 response.error(error);
-                            }
+                            },
                         });
                     },
-                    error: function(error) {
+                    error: function (error) {
                         console.log("version.save failed: " + error);
                         response.error("version.save failed: " + error);
-                    }
+                    },
                 });
             },
-            error: function(error) {
+            error: function (error) {
                 response.error(error);
-            }
+            },
         });
     };
     // Create a user, temporarily, which we will delete later.
@@ -994,13 +884,13 @@ Parse.Cloud.define("setupTables", function(request, response) {
         "unprotected",
         { administrator: false },
         {
-            success: function(newUser) {
+            success: function (newUser) {
                 aUser = newUser;
                 doOne(); // start the recursion.
             },
-            error: function(error) {
+            error: function (error) {
                 response.error(error);
-            }
+            },
         }
     );
 });
@@ -1014,7 +904,7 @@ Parse.Cloud.define("setupTables", function(request, response) {
 // subsequently call a POST to users which will create the parse-server user with authData.
 // If there is a corresponding parse-server user with authData, the POST to users
 // will log them in.
-Parse.Cloud.define("bloomLink", async function(request, response) {
+Parse.Cloud.define("bloomLink", async function (request, response) {
     let user;
     try {
         var id = request.params.id;
@@ -1058,7 +948,7 @@ Parse.Cloud.define("bloomLink", async function(request, response) {
                 response.success("linked parse-server user by adding authData");
                 return;
             },
-            error => {
+            (error) => {
                 // console.log(
                 //     "bloomLink failed to save " + JSON.stringify(error)
                 // );
