@@ -270,6 +270,9 @@ Parse.Cloud.beforeSave("books", function (request, response) {
             // Features is able to be changed by moderators, but it's also computed by BloomDesktop. Even if it's empty, keep the BloomDesktop value.
             // My sense is that the auto-computed value is generally more likely to be correct than the value from the DB.
             // The user might've removed all the pages with that feature.
+            //
+            // langPointers can also be changed by moderators. But it's difficult to keep track of what languages a moderator removed
+            // versus what is a newly added language. So for now, we'll live with not modifying langPointers.
         }
     }
 
