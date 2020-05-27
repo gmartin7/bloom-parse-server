@@ -639,6 +639,8 @@ Parse.Cloud.define("setupTables", function (request, response) {
                 { name: "formatVersion", type: "String" },
                 { name: "inCirculation", type: "Boolean" },
                 { name: "isbn", type: "String" },
+                { name: "keywords", type: "Array" },
+                { name: "keywordStems", type: "Array" },
                 { name: "langPointers", type: "Array" },
                 { name: "languages", type: "Array" },
                 { name: "librarianNote", type: "String" },
